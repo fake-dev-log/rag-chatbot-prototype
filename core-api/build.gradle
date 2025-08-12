@@ -5,7 +5,7 @@ plugins {
 }
 
 group = 'prototype'
-version = '0.0.1-SNAPSHOT'
+version = '0.0.1'
 
 java {
     toolchain {
@@ -71,9 +71,9 @@ dependencies {
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
-tasks.named('test') {
-    useJUnitPlatform()
-}
+// tasks.named('test') {
+//     useJUnitPlatform()
+// }
 
 jar {
     enabled = false

@@ -11,7 +11,10 @@ async function doRefresh() {
       credentials: "include",
     })
       .then(async (res) => {
-        if (!res.ok) throw new Error("리프레시 토큰 만료");
+        if (!res.ok) {
+          const errorResponse = await res.json();
+          throw new Error(errorResponse.message || "리프레시 토큰 만료");
+        }
         const { data } = await res.json();
         useAuthStore.getState().setAccessToken(data.accessToken);
       })
@@ -46,11 +49,12 @@ export async function fetchWithAuth(
       const newToken = useAuthStore.getState().accessToken;
       if (newToken) headers.set("Authorization", `Bearer ${newToken}`);
       res = await fetch(input, { ...init, headers, credentials: "include" });
-    } catch {
+    } catch (e) {
       // refresh failed → sign out
+      const errorMessage = (e instanceof Error) ? e.message : "로그인이 만료되었습니다. 다시 로그인해주세요.";
       store.signOut();
       window.location.href = "/sign-in";
-      throw new Error("로그인이 만료되었습니다. 다시 로그인해주세요.");
+      throw new Error(errorMessage);
     }
   }
 

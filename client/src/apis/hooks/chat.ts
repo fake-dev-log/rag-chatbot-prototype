@@ -33,7 +33,10 @@ export function useCreateChat() {
       const res = await fetchWithAuth(`${baseURL}${API_BASE_URL.chats}`, {
         method: "POST",
       });
-      if (!res.ok) throw new Error("채팅방 생성 실패");
+      if (!res.ok) {
+        const errorResponse = await res.json();
+        throw new Error(errorResponse.message || "채팅방 생성 실패");
+      }
       return res.json();
     },
     onSuccess: async () => {
@@ -57,7 +60,10 @@ export function useChat() {
         },
         body: JSON.stringify({ query }),
       })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      if (!res.ok) {
+        const errorResponse = await res.json();
+        throw new Error(errorResponse.message || `HTTP ${res.status}`);
+      }
       return res.body!.getReader()
     },
 
@@ -92,7 +98,9 @@ export function useChat() {
           } else if (type === "sources") {
             setSourcesOnLastBot(convertToSourceDocuments(data as OriginalSource[]))
           } else if (type === "error") {
-            throw new Error(data as string)
+            // Assuming data is a JSON string of ErrorResponse
+            const errorData = JSON.parse(data as string);
+            throw new Error(errorData.message || "알 수 없는 오류 발생");
           } else if (type === "done") {
             done = data as boolean
           }

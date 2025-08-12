@@ -1,0 +1,14 @@
+{
+    "python-envs.pythonProjects": [
+        {
+            "path": "indexing-service",
+            "envManager": "ms-python.python:venv",
+            "packageManager": "ms-python.python:pip"
+        },
+        {
+            "path": "rag-service",
+            "envManager": "ms-python.python:venv",
+            "packageManager": "ms-python.python:pip"
+        }
+    ]
+}

@@ -13,7 +13,7 @@ WORKDIR /app
 
 COPY build.gradle settings.gradle gradlew /app/
 
-COPY core-api /app
+COPY . /app
 
 RUN chmod +x gradlew
 RUN ./gradlew clean build -Pprofile=${ACTIVE_PROFILE} -Pfull=${FULL_TEST}

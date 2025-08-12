@@ -1,6 +1,7 @@
 import axios from "axios";
 import useAuthStore from "@stores/auth.ts";
 import {baseURL} from "@apis/types/common.ts";
+import { useToastStore } from "@stores/toast.ts"; // Import Zustand store
 
 const api = axios.create({
   baseURL: baseURL,
@@ -23,7 +24,7 @@ api.interceptors.response.use(
 
     switch (error.response.status) {
       case 400:
-        throw new Error(error.response.data ?? "로그인에 실패했습니다.");
+        throw new Error(error.response.data?.message ?? "로그인에 실패했습니다.");
       case 401:
         if (originalRequest.url.includes("/auth/refresh")) {
           return Promise.reject(error);
@@ -38,16 +39,19 @@ api.interceptors.response.use(
               useAuthStore.setState({ accessToken: accessToken });
               return api(originalRequest);
             } else {
-              await handleExpired(error);
+              const errorData = response.data;
+              await handleExpired(errorData.message || "로그인이 만료되었습니다. 다시 로그인해주세요.");
             }
           }
         } catch (e) {
-          await handleExpired(e);
+          const errorMessage = (e as any)?.response?.data?.message || "로그인이 만료되었습니다. 다시 로그인해주세요.";                          
+          await handleExpired(errorMessage);
         }
-        await handleExpired(error);
+        const finalErrorMessage = error.response?.data?.message || "로그인이 만료되었습니다. 다시 로그인해주세요."
+        await handleExpired(finalErrorMessage);
         break;
       case 500:
-        throw new Error(error.response.data ?? "서버 에러가 발생했습니다.");
+        throw new Error(error.response.data.message ?? "서버 에러가 발생했습니다.");
       default:
         break;
     }
@@ -56,11 +60,11 @@ api.interceptors.response.use(
   }
 )
 
-function handleExpired(error: unknown) {
+function handleExpired(message: string = "로그인이 만료되었습니다. 다시 로그인해주세요.") {
   useAuthStore.getState().signOut();
-  alert("로그인이 만료되었습니다. 다시 로그인해주세요.");
+  useToastStore.getState().addToast(message, 'error'); // Use Zustand store
   window.location.href = "/sign-in";
-  return Promise.reject(error);
+  return Promise.reject(new Error(message));
 }
 
 export default api

@@ -65,26 +65,29 @@ public class RestResponse<T> {
                 .build().toResponseEntity();
     }
 
-    public static ResponseEntity<String> customError(BusinessException e) {
-        RestResponse<String> response;
-        if (e.getErrorCode() == null) {
-            response = RestResponse.<String>builder()
+    public static ResponseEntity<ErrorResponse> customError(BusinessException e) {
+        final ErrorCode errorCode = e.getErrorCode();
+        if (errorCode == null) {
+            final ErrorResponse errorResponse = new ErrorResponse(ErrorCode.SERVICE_FAIL);
+            return RestResponse.<ErrorResponse>builder()
                     .code(ErrorCode.SERVICE_FAIL.getCode())
-                    .data(ErrorCode.SERVICE_FAIL.getMsg())
-                    .build();
-        } else {
-            response = RestResponse.<String>builder()
-                    .code(e.getErrorCode().getCode())
-                    .data(e.getMessage())
-                    .build();
+                    .data(errorResponse)
+                    .build()
+                    .toResponseEntity();
         }
-        return response.toResponseEntity();
+        final ErrorResponse errorResponse = new ErrorResponse(errorCode, e.getMessage());
+        return RestResponse.<ErrorResponse>builder()
+                .code(errorCode.getCode())
+                .data(errorResponse)
+                .build()
+                .toResponseEntity();
     }
 
-    public static ResponseEntity<String> customError(ErrorCode e, String... args) {
-        return RestResponse.<String>builder()
+    public static ResponseEntity<ErrorResponse> customError(ErrorCode e, String... args) {
+        final ErrorResponse errorResponse = new ErrorResponse(e, ErrorCodeUtil.parseMessage(e.getMsg(), args));
+        return RestResponse.<ErrorResponse>builder()
                 .code(e.getCode())
-                .data(ErrorCodeUtil.parseMessage(e.getMsg(), args))
+                .data(errorResponse)
                 .build()
                 .toResponseEntity();
     }
