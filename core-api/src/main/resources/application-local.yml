@@ -1,0 +1,54 @@
+server:
+  tomcat:
+    threads:
+      max: 100
+
+spring:
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+  r2dbc:
+    url: r2dbc:pool:postgresql://postgres:5432/prototype
+    username: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
+
+  data:
+    redis:
+      host: redis
+      port: 6379
+      timeout: 3000
+
+    mongodb:
+      username: ${MONGO_INITDB_ROOT_USERNAME]
+      password: ${MONGO_INITDB_ROOT_PASSWORD}
+      host: mongo
+      port: 27017
+      database: prototype
+      authentication-database: admin
+
+rag-service:
+  api:
+    baseUrl: http://rag-service:5000
+
+logging:
+  level:
+    io.r2dbc.proxy: DEBUG
+    org:
+      springframework:
+        web: TRACE
+
+springdoc:
+  swagger-ui:
+    path: /docs
+    enabled: true
+    server-url: http://127.0.0.1:8080
+  api-docs:
+    enabled: true
+  show-actuator: false
+  packages-to-scan: prototype.core-api.domain
+  paths-to-match: /**
+
+jwt:
+  secret: l6p3GWzJjVh1PMnyyw9cJqB9kJh5C7rj/bEMVgPVgwY=

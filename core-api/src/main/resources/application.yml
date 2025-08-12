@@ -1,0 +1,32 @@
+server:
+  tomcat:
+    uri-encoding: UTF-8
+    max-connections: 200
+  servlet:
+    encoding:
+      charset: UTF-8
+  error:
+    include-exception: false
+    include-stacktrace: never
+    whitelabel:
+      enabled: false
+  forward-headers-strategy: native
+  port: 8080
+
+spring:
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher
+  data:
+    web:
+      pageable:
+        one-indexed-parameters: true
+        default-page-size: 10
+
+jwt:
+  issuer: "prototype-test"
+  access-expiration: 7200000 # 2시간
+  refresh-expiration: 604800000 # 7일
+
+logging:
+  config: classpath:log4j2.xml

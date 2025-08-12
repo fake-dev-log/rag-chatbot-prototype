@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<configuration status="DEBUG">
+
+    <Appenders>
+        <!-- 콜솔 -->
+        <Console name="console" target="SYSTEM_OUT">
+            <PatternLayout pattern="%d{yyyy-MM-dd hh:mm:ss} %5p [%c] %m%n"/>
+        </Console>
+
+        <!-- 파일  -->
+        <RollingFile name ="logFile">
+            <FileName>./logs/core-api.log</FileName>
+            <FilePattern>./logs/%d{yyyy-MM-dd-hh-mm}/core-api.zip</FilePattern>
+            <PatternLayout>
+                <Pattern>%d{yyyy-MM-dd HH:mm:ss} %5p [%c] %m%n</Pattern>
+            </PatternLayout>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval = "7200" modulate = "true"/>
+                <DefaultRolloverStrategy max="10" fileIndex="min"/>
+            </Policies>
+        </RollingFile>
+
+        <RollingFile name ="logFileError">
+            <FileName>./logs/core-api-error.log</FileName>
+            <FilePattern>./logs/%d{yyyy-MM-dd-hh-mm}/core-api-error.zip</FilePattern>
+            <PatternLayout>
+                <Pattern>%d{yyyy-MM-dd HH:mm:ss} %5p [%c] %m%n</Pattern>
+            </PatternLayout>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval = "7200" modulate = "true"/>
+                <DefaultRolloverStrategy max="5" fileIndex="min"/>
+            </Policies>
+        </RollingFile>
+
+    </Appenders>
+
+    <loggers>
+        <Logger name="jdbc.sqlonly" additivity="false">
+            <AppenderRef ref="console" level = "INFO"/>
+            <AppenderRef ref="logFile" level = "INFO"/>
+            <AppenderRef ref="logFileError" level = "INFO"/>
+        </Logger>
+
+        <!-- Root logger -->
+        <Root level="INFO">
+            <AppenderRef ref="console"/>
+            <AppenderRef ref="logFile"/>
+            <AppenderRef ref="logFileError"/>
+        </Root>
+    </loggers>
+</configuration>

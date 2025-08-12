@@ -1,0 +1,134 @@
+services:
+  core-api:
+    restart: always
+    build:
+      context: ./core-api
+      dockerfile: Dockerfile
+      args:
+        ACTIVE_PROFILE: local
+        FULL_TEST: false
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      TZ: Asia/Seoul
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+#    volumes:
+#      - langchain-log-volume:/app/logs
+    ports:
+      - "8080:8080"
+    networks:
+      - internal-net
+
+  postgres:
+    image: postgres:17-alpine
+    restart: always
+    networks:
+      internal-net:
+        aliases:
+          - postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: prototype
+    volumes:
+      - ./postgres-init.sql:/docker-entrypoint-initdb.d/postgres-init.sql:ro
+
+  redis:
+    image: redis:8.0.1-alpine
+    restart: always
+    networks:
+      internal-net:
+        aliases:
+          - redis
+    expose:
+      - "6379"
+#    volumes:
+#      - redis-data:/data
+    command: "redis-server"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 256M
+        reservations:
+          cpus: "0.125"
+          memory: 128M
+
+  mongo:
+    image: mongo:6.0
+    restart: always
+    networks:
+      internal-net:
+        aliases:
+          - mongo
+    expose:
+      - "27017"
+    environment:
+      # 초기 DB 이름과 관리자 계정
+      MONGO_INITDB_DATABASE: prototype
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+    volumes:
+      # 데이터 영속화
+#      - mongo-data:/data/db
+      # 컨테이너 시작 시 실행될 초기화 스크립트
+      - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+
+  rag-service:
+    build:
+      context: ./rag-service
+      dockerfile: Dockerfile
+    restart: always
+    expose:
+      - "5000"
+    environment:
+      # 필요하다면 API 키, 모델명, 환경 변수 등
+      TOKENIZERS_PARALLELISM: false
+    networks:
+      internal-net:
+        aliases:
+            - rag-service
+    healthcheck:
+      test: http://localhost:5000/health
+
+  indexing-service:
+    build:
+      context: ./indexing-service
+      dockerfile: Dockerfile
+    restart: on-failure
+    expose:
+      - "5001"
+    networks:
+      internal-net:
+        aliases:
+          - indexing-service
+
+
+networks:
+  internal-net:
+    driver: bridge
+
+#volumes:
+#  langchain-log-volume:
+#    driver: local
+#    driver_opts:
+#      type: none
+#      o: bind
+#      device: /mnt/carbon-square/logs
+#
+#  redis-data:
+#    driver: local
+#    driver_opts:
+#      type: none
+#      o: bind
+#      device: /mnt/carbon-square/redis/data
+#  mongo-data:
+#    driver: local
+#    driver_opts:
+#      type: none
+#      o: bind
+#      device: /mnt/carbon-square/mongo/data
