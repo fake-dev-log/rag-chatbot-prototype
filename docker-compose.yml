@@ -15,7 +15,7 @@ services:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
     volumes:
-      - log-volume:/app/logs
+      - core-api-log:/app/logs
     ports:
       - "8080:8080"
     networks:
@@ -84,29 +84,53 @@ services:
       context: ./rag-service
       dockerfile: Dockerfile
     restart: always
+    networks:
+      internal-net:
+        aliases:
+          - rag-service
     expose:
       - "5000"
     environment:
       # 필요하다면 API 키, 모델명, 환경 변수 등
+      LLM_API_BASE: "http://llm-server:11434"
       TOKENIZERS_PARALLELISM: false
+    healthcheck:
+      test: http://localhost:5000/health
+    depends_on:
+      - llm-server
+    volumes:
+      - rag-service-log:/app/logs
+      - huggingface-cache:/root/.cache/huggingface/hub
+
+  llm-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.llm-server
+    restart: always
     networks:
       internal-net:
         aliases:
-            - rag-service
-    healthcheck:
-      test: http://localhost:5000/health
+          - llm-server
+    expose:
+      - "11434"
+    volumes:
+      - ollama-data:/root/.ollama
+
 
   indexing-service:
     build:
       context: ./indexing-service
       dockerfile: Dockerfile
     restart: on-failure
-    expose:
-      - "5001"
     networks:
       internal-net:
         aliases:
           - indexing-service
+    expose:
+      - "5001"
+    volumes:
+      - indexing-service-log:/app/logs
+      - huggingface-cache:/root/.cache/huggingface/hub
 
   client:
     build:
@@ -120,34 +144,61 @@ services:
     depends_on:
       - core-api # Client depends on core-api for API calls
 
-
 networks:
   internal-net:
     driver: bridge
 
 volumes:
- log-volume:
-   driver: local
-   driver_opts:
-     type: none
-     o: bind
-     device: /opt/rag-chatbot-prototype/logs
+  core-api-log:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ~/rag-chatbot-prototype/logs/core-api
+  rag-service-log:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ~/rag-chatbot-prototype/logs/rag-service
+  indexing-service-log:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ~/rag-chatbot-prototype/logs/indexing-service
 
- redis-data:
-   driver: local
-   driver_opts:
-     type: none
-     o: bind
-     device: /opt/rag-chatbot-prototype/redis/data
- pg-data:
-   driver: local
-   driver_opts:
-     type: none
-     o: bind
-     device: /opt/rag-chatbot-prototype/pg/data
- mongo-data:
-   driver: local
-   driver_opts:
-     type: none
-     o: bind
-     device: /opt/rag-chatbot-prototype/mongo/data
+  redis-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ~/rag-chatbot-prototype/redis/data
+  pg-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ~/rag-chatbot-prototype/pg/data
+  mongo-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ~/rag-chatbot-prototype/mongo/data
+
+  ollama-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ~/rag-chatbot-prototype/ollama/data
+
+  huggingface-cache:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ~/rag-chatbot-prototype/huggingface/cache
+
+  documents:

@@ -1,4 +1,4 @@
-FROM node:23.11-alpine AS client-fetch
+FROM node:22-alpine AS client-fetch
 
 ARG BUILD_MODE
 

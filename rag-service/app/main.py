@@ -13,9 +13,11 @@ logger = logging.getLogger(__name__)
 app = FastAPI()
 app.include_router(chatrouter)
 
+
 @app.get("/health")
 async def health_check():
     return {"status": "ok"}
+
 
 @app.get("/ready", dependencies=[Depends(verify_api_key)])
 async def readiness_check():
@@ -25,5 +27,6 @@ async def readiness_check():
         # HTTP 503: Service Unavailable
         return HTTPException(status_code=503, detail={"ready": False})
 
+
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000, log_config=LOGGING_CONFIG)
+    uvicorn.run(app, host="0.0.0.0", port=5000, log_config=LOGGING_CONFIG)

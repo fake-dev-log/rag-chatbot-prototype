@@ -1,4 +1,4 @@
-FROM python:3.10-slim
+FROM python:3.12-slim
 
 # 작업 디렉터리
 WORKDIR /app
@@ -7,8 +7,6 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 프로젝트 전체 복사 (main.py)
-COPY . .
+COPY app .
 
-# uvicorn을 통해 api.py 안의 app 실행
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "5001"]

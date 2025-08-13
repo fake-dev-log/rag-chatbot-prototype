@@ -1,5 +1,8 @@
 import logging
 import json
+from pathlib import Path
+
+Path.mkdir(Path('logs'), exist_ok=True)
 
 
 class CustomJSONFormatter(logging.Formatter):
@@ -57,7 +60,7 @@ LOGGING_CONFIG = {
         'file': {
             'formatter': 'json',
             'class': 'logging.handlers.RotatingFileHandler',
-            'filename': 'service.log',
+            'filename': 'logs/rag-service.log',
             'maxBytes': 1024 * 1024 * 10,  # = 10MB
             'backupCount': 10,
         },

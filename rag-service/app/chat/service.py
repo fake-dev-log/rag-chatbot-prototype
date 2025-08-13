@@ -2,7 +2,7 @@ import json
 
 from app.chat.schemas import SourceDocument
 from app.modules.embedding import hugging_face
-from app.modules.llm import OpenAI
+from app.modules.llm import Ollama
 from app.modules.prompt import MedicalDeviceCyberSecurityTemplate
 from app.modules.retriever import Faiss
 
@@ -19,7 +19,7 @@ class ChatService:
 
     def __init__(self):
         self.prompt = MedicalDeviceCyberSecurityTemplate().get_prompt()
-        self.llm = OpenAI().get_model()
+        self.llm = Ollama().get_model()
         embedding = hugging_face.get_embedding()
         self.retriever = Faiss(embedding).get_retriever()
 

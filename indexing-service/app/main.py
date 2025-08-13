@@ -6,6 +6,7 @@ from extensions.logs import LOGGING_CONFIG
 
 app = FastAPI()
 
+
 @app.get("/health")
 async def health_check():
     return {"status": "ok"}

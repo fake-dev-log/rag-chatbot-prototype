@@ -8,6 +8,7 @@ import logging
 CACHE_FOLDER = os.getenv("EMBEDDING_CACHE_FOLDER", None)
 logger = logging.getLogger(__name__)
 
+
 def _has_cuda():
     try:
         logger.info(torch.cuda.get_device_name(torch.cuda.current_device()))
@@ -40,6 +41,3 @@ class HuggingFace:
         return self.embeddings
 
 hugging_face = HuggingFace()
-
-
-
