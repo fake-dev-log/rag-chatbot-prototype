@@ -7,7 +7,6 @@ from app.modules.prompt import MedicalDeviceCyberSecurityTemplate
 from app.modules.retriever import Faiss
 
 from langchain_core.output_parsers import StrOutputParser
-from langchain_core.runnables import RunnableParallel, RunnablePassthrough
 
 
 def format_ndjson(obj: dict) -> str:
@@ -21,44 +20,48 @@ class ChatService:
         self.prompt = MedicalDeviceCyberSecurityTemplate().get_prompt()
         self.llm = Ollama().get_model()
         embedding = hugging_face.get_embedding()
-        self.retriever = Faiss(embedding).get_retriever()
 
-        self.chain = self.prompt | self.llm | StrOutputParser()
-        self.runner = RunnableParallel(
-            {
-                "question": RunnablePassthrough(),
-                "context": self.retriever,
-            }
-        ).assign(chain=self.chain)
+        self.faiss_manager = Faiss(embedding)
+        self.retriever = self.faiss_manager.get_retriever()
+
+        self.chain = (
+                {
+                    "context": lambda x: x["context"],
+                    "question": lambda x: x["question"]
+                }
+                | self.prompt
+                | self.llm
+                | StrOutputParser()
+        )
         self.ready = True
 
     def reload_retriever(self):
         self.ready = False
-        self.retriever.reload()
-        self.runner = RunnableParallel(
-            {
-                "question": RunnablePassthrough(),
-                "context": self.retriever,
-            }
-        ).assign(chain=self.chain)
+        self.faiss_manager.reload_retriever()
+        self.retriever = self.faiss_manager.get_retriever()
         self.ready = True
 
     def stream(self, query: str):
-        sources = []
-        for chunk in self.runner.stream(query):
-            if "context" in chunk:
-                # 모아 두었다가 마지막에 한 번에 내보냄
-                sources.extend([
-                    SourceDocument(
-                        file_name=doc.metadata['file_name'],
-                        title=str(doc.metadata['title']),
-                        page_number=doc.metadata['page_number'],
-                        snippet=doc.page_content,
-                    ).model_dump()
-                    for doc in chunk["context"]])
-            if "chain" in chunk:
-                # 토큰 단위 스트리밍
-                yield format_ndjson({"type": "token", "data": chunk["chain"]})
+        retrieved_docs = self.retriever.invoke(query)
 
-        # 스트림 끝날 때 한 번에 소스 목록 내보내기
-        yield format_ndjson({"type": "sources", "data": sources})
+        if not retrieved_docs:
+            chain_input = {"context": None, "question": query}
+            for chunk in self.chain.stream(chain_input):
+                yield format_ndjson({"type": "token", "data": chunk})
+        else:
+            sources = [
+                SourceDocument(
+                    file_name=doc.metadata.get('file_name', 'N/A'),
+                    title=str(doc.metadata.get('title', 'N/A')),
+                    page_number=doc.metadata.get('page_number', 0),
+                    snippet=doc.page_content,
+                ).model_dump()
+                for doc in retrieved_docs
+            ]
+
+            chain_input = {"context": retrieved_docs, "question": query}
+            for chunk in self.chain.stream(chain_input):
+                yield format_ndjson({"type": "token", "data": chunk})
+
+            # 스트림 끝날 때 한 번에 소스 목록 내보내기
+            yield format_ndjson({"type": "sources", "data": sources})

@@ -69,11 +69,15 @@ dependencies {
     testImplementation 'io.projectreactor:reactor-test'
     testImplementation 'org.springframework.security:spring-security-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    // H2 for test
+    testImplementation 'com.h2database:h2'
+    testImplementation 'io.r2dbc:r2dbc-h2'
 }
 
-// tasks.named('test') {
-//     useJUnitPlatform()
-// }
+ tasks.named('test') {
+     useJUnitPlatform()
+ }
 
 jar {
     enabled = false

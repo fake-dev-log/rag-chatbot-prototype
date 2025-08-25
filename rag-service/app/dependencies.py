@@ -1,6 +1,6 @@
 from fastapi import Header, HTTPException
 
-from modules.redis_client import client
+from app.modules.redis_client import client
 
 
 async def verify_api_key(x_api_key: str = Header(...), x_api_secret: str = Header(...)):

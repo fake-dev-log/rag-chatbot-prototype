@@ -2,7 +2,7 @@ import logging
 import json
 from pathlib import Path
 
-Path.mkdir(Path('logs'), exist_ok=True)
+Path.mkdir(Path('/app/logs'), exist_ok=True)
 
 
 class CustomJSONFormatter(logging.Formatter):
@@ -34,6 +34,7 @@ def get_log(record):
 
     return d
 
+
 LOGGING_CONFIG = {
     'version': 1,
     'disable_existing_loggers': True,
@@ -59,7 +60,7 @@ LOGGING_CONFIG = {
         'file': {
             'formatter': 'json',
             'class': 'logging.handlers.RotatingFileHandler',
-            'filename': 'logs/indexing-service.log',
+            'filename': '../logs/indexing-service.log',
             'maxBytes': 1024 * 1024 * 10,  # = 10MB
             'backupCount': 10,
         },

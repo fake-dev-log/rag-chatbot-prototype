@@ -1,10 +1,10 @@
 CREATE OR REPLACE FUNCTION SET_UPDATED_AT_NOW()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER AS $
 BEGIN
     NEW.updated_at = NOW();
 RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$ LANGUAGE plpgsql;
 
 CREATE TABLE members (
     id                  SERIAL PRIMARY KEY,
@@ -52,3 +52,26 @@ COMMENT ON COLUMN chats.member_id IS '대화 상대';
 COMMENT ON COLUMN chats.title IS '대화 제목';
 COMMENT ON COLUMN chats.last_message_preview IS '최근 메시지 미리보기';
 COMMENT ON COLUMN chats.is_archived IS '사용자가 보관(아카이브)했는지 여부';
+
+CREATE TABLE documents (
+    id                  SERIAL PRIMARY KEY,
+    name                VARCHAR(255) NOT NULL,
+    path                VARCHAR(512) NOT NULL,
+    type                VARCHAR(50)  NOT NULL,
+    size                BIGINT       NOT NULL,
+    created_at          TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at          TIMESTAMP    NULL
+);
+
+CREATE TRIGGER ON_UPDATE_TRIGGER
+    BEFORE UPDATE ON documents
+    FOR EACH ROW
+    EXECUTE FUNCTION SET_UPDATED_AT_NOW();
+
+COMMENT ON COLUMN documents.id IS 'PK';
+COMMENT ON COLUMN documents.name IS '원본 파일명';
+COMMENT ON COLUMN documents.path IS '저장된 파일의 전체 경로';
+COMMENT ON COLUMN documents.type IS '파일 확장자';
+COMMENT ON COLUMN documents.size IS '파일 크기 (bytes)';
+COMMENT ON COLUMN documents.created_at IS '생성시간';
+COMMENT ON COLUMN documents.updated_at IS '수정 일시';

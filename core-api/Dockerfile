@@ -7,7 +7,6 @@ RUN apt-get update && \
 FROM core-api-base AS core-api
 
 ARG ACTIVE_PROFILE
-ARG FULL_TEST
 
 WORKDIR /app
 
@@ -16,6 +15,6 @@ COPY build.gradle settings.gradle gradlew /app/
 COPY . /app
 
 RUN chmod +x gradlew
-RUN ./gradlew clean build -Pprofile=${ACTIVE_PROFILE} -Pfull=${FULL_TEST}
+RUN ./gradlew clean build -Pprofile=${ACTIVE_PROFILE}
 
 CMD ["java", "-jar", "build/libs/core-api-0.0.1.jar"]

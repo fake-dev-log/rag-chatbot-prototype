@@ -99,8 +99,8 @@ export function useChat() {
             setSourcesOnLastBot(convertToSourceDocuments(data as OriginalSource[]))
           } else if (type === "error") {
             // Assuming data is a JSON string of ErrorResponse
-            const errorData = JSON.parse(data as string);
-            throw new Error(errorData.message || "알 수 없는 오류 발생");
+            const errorData = data as string;
+            throw new Error(errorData || "알 수 없는 오류 발생");
           } else if (type === "done") {
             done = data as boolean
           }

@@ -32,12 +32,13 @@ class HuggingFace:
 
     def __init__(self):
         self.embeddings = HuggingFaceEmbeddings(
-        model_name="BAAI/bge-m3",
-        model_kwargs={"device": "cuda" if _has_cuda() else "cpu"},
-        cache_folder=CACHE_FOLDER,
-    )
+            model_name="BAAI/bge-m3",
+            model_kwargs={"device": "cuda" if _has_cuda() else "cpu"},
+            cache_folder=CACHE_FOLDER,
+        )
 
     def get_embedding(self):
         return self.embeddings
+
 
 hugging_face = HuggingFace()

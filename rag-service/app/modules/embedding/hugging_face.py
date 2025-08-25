@@ -1,8 +1,11 @@
 import logging
+import os
 
 from langchain_huggingface import HuggingFaceEmbeddings
 import torch
 
+
+CACHE_FOLDER = os.getenv("EMBEDDING_CACHE_FOLDER", None)
 logger = logging.getLogger(__name__)
 
 
@@ -31,9 +34,11 @@ class HuggingFace:
         self.embeddings = HuggingFaceEmbeddings(
             model_name="BAAI/bge-m3",
             model_kwargs={"device": "cuda" if _has_cuda() else "cpu"},
+            cache_folder=CACHE_FOLDER,
         )
 
     def get_embedding(self):
         return self.embeddings
+
 
 hugging_face = HuggingFace()

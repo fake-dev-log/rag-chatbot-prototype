@@ -21,7 +21,7 @@ spring:
       timeout: 3000
 
     mongodb:
-      username: ${MONGO_INITDB_ROOT_USERNAME]
+      username: ${MONGO_INITDB_ROOT_USERNAME}
       password: ${MONGO_INITDB_ROOT_PASSWORD}
       host: mongo
       port: 27017
@@ -30,7 +30,7 @@ spring:
 
 rag-service:
   api:
-    baseUrl: http://rag-service:5000
+    baseUrl: http://rag-service:8000
 
 logging:
   level:
@@ -47,7 +47,7 @@ springdoc:
   api-docs:
     enabled: true
   show-actuator: false
-  packages-to-scan: prototype.core-api.domain
+  packages-to-scan: prototype.coreapi.domain
   paths-to-match: /**
 
 jwt:

@@ -30,3 +30,7 @@ jwt:
 
 logging:
   config: classpath:log4j2.xml
+
+document:
+  storage:
+    path: /volumes/documents

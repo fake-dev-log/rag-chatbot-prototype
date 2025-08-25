@@ -1,4 +1,9 @@
 spring:
+  r2dbc:
+    url: r2dbc:h2:mem:///testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password: 
+
   mvc:
     pathmatch:
       matching-strategy: ant_path_matcher
@@ -9,6 +14,7 @@ spring:
         default-page-size: 10
 
 jwt:
+  secret: "dGVzdC1zZWNyZXQtZm9yLXByb3RvdHlwZS1KV1Qtc2VjcmV0LWtleQo="
   issuer: "prototype-test"
   access-expiration: 7200000 # 2시간
   refresh-expiration: 604800000 # 7일
