@@ -5,7 +5,7 @@ import uvicorn
 
 from .extensions.logs import LOGGING_CONFIG
 from .chat import router as chat_router
-from .retriever import routes as retriever_router
+from .retriever.routes import router as retriever_router
 
 logger = logging.getLogger(__name__)
 

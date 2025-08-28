@@ -1,20 +1,15 @@
-package prototype.coreapi.domain.document;
+package prototype.coreapi.domain.document.enitity;
 
-import lombok.AccessLevel;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import org.springframework.data.annotation.Id;
+import lombok.*;
 import org.springframework.data.relational.core.mapping.Table;
 import prototype.coreapi.domain.BaseEntity;
 
 @Table(name = "documents")
 @Getter
+@Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PROTECTED)
 public class Document extends BaseEntity {
-
-    @Id
-    private Long id;
 
     private String name; // 원본 파일명
 
@@ -23,13 +18,4 @@ public class Document extends BaseEntity {
     private String type; // 파일 확장자 (e.g., "pdf")
 
     private long size; // 파일 크기 (bytes)
-
-    @Builder
-    public Document(Long id, String name, String path, String type, long size) {
-        this.id = id;
-        this.name = name;
-        this.path = path;
-        this.type = type;
-        this.size = size;
-    }
 }

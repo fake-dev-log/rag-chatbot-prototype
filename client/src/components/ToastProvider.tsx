@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type {FC, ReactNode} from 'react';
 import { createPortal } from 'react-dom';
 import { useToastStore } from '@stores/toast'; // Import the Zustand store
 
@@ -6,7 +6,7 @@ interface ToastProviderProps {
   children: ReactNode;
 }
 
-export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
+export const ToastProvider: FC<ToastProviderProps> = ({ children }) => {
   const toasts = useToastStore((state) => state.toasts); // Get toasts from Zustand store
 
   const toastContainer = document.getElementById('toast-root');

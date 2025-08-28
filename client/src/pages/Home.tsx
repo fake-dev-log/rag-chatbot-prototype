@@ -15,9 +15,7 @@ export default function Home() {
     if (!query.trim() || createChat.isPending) return;
 
     try {
-      // 1) 채팅방 생성
       const newId = await createChat.mutateAsync();
-      // 2) 생성된 방으로 네비게이트 + 초기 쿼리 전달
       navigate(`/chats/${newId}`, { state: { initialQuery: query } });
     } catch (err) {
       console.error(err);
@@ -27,7 +25,7 @@ export default function Home() {
   return (
     <div
       className="
-        flex flex-col h-screen w-full
+        flex flex-col flex-1 h-screen
         bg-background-light dark:bg-background-dark
         transition-colors duration-300
         justify-center items-center p-4

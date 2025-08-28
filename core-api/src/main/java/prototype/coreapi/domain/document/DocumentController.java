@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.codec.multipart.FilePart;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import prototype.coreapi.domain.document.dto.DocumentResponse;
 import reactor.core.publisher.Flux;
@@ -15,6 +16,7 @@ import reactor.core.publisher.Mono;
 @RequestMapping("/documents")
 @RequiredArgsConstructor
 @Tag(name = "문서 관리", description = "RAG 문서 관리 API")
+@PreAuthorize("hasRole('ADMIN')")
 public class DocumentController {
 
     private final DocumentService documentService;

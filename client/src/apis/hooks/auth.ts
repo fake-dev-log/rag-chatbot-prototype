@@ -2,26 +2,26 @@ import {API_BASE_URL} from "@apis/types/common.ts";
 import {useNavigate} from "react-router-dom";
 import {useMutation} from "@tanstack/react-query";
 import api from "src/apis";
-import type {LoginRequest, LoginResponse} from "@apis/types/auth.ts";
+import type {AuthRequest, AuthResponse} from "@apis/types/auth.ts";
 import useAuthStore from "@stores/auth.ts";
 
 const baseUri = API_BASE_URL.auth
 
-const useLogin = () => {
+const useSignIn = () => {
   const navigate = useNavigate();
-  return useMutation<LoginResponse, Error, LoginRequest>({
+  return useMutation<AuthResponse, Error, AuthRequest>({
     mutationFn: async (params) => {
-      const response = await api.post<LoginResponse>(`${baseUri}/sign-in`, params);
+      const response = await api.post<AuthResponse>(`${baseUri}/sign-in`, params);
       return response.data;
     },
-    onSuccess: async (data: LoginResponse) => {
-      useAuthStore.setState({ accessToken: data.accessToken });
+    onSuccess: async (data: AuthResponse) => {
+      useAuthStore.getState().setAuth(data);
       navigate("/");
     }
   });
 }
 
-const useLogout = () => {
+const useSignOut = () => {
   const navigate = useNavigate();
 
   return useMutation({
@@ -36,6 +36,6 @@ const useLogout = () => {
 };
 
 export {
-  useLogin,
-  useLogout,
+  useSignIn,
+  useSignOut,
 }

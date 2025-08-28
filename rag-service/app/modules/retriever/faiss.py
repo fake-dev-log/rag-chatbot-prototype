@@ -10,7 +10,7 @@ logger.setLevel(logging.INFO)
 
 
 class Faiss:
-    vector_store_dir = '../vector-store'
+    vector_store_dir = '/app/vector-store'
 
     def __init__(self, embedding_model: Embeddings):
         self.embedding_model = embedding_model

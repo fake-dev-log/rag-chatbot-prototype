@@ -16,7 +16,7 @@ async function doRefresh() {
           throw new Error(errorResponse.message || "리프레시 토큰 만료");
         }
         const { data } = await res.json();
-        useAuthStore.getState().setAccessToken(data.accessToken);
+        useAuthStore.getState().setAuth(data);
       })
       .finally(() => {
         refreshing = null;

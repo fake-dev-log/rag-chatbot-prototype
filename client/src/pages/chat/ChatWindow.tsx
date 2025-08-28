@@ -1,8 +1,10 @@
+
 import { type FormEvent, useRef, useEffect, useState } from 'react';
 import { Disclosure, DisclosureButton, DisclosurePanel } from '@headlessui/react';
 import { ChevronUpIcon, ChevronDownIcon } from 'lucide-react';
 import { Spinner } from '@components/Spinner';
 import type {Message} from "@apis/types/chat.ts";
+import ReactMarkdown from 'react-markdown';
 
 interface ChatWindowProps {
   messages: Message[];
@@ -73,7 +75,7 @@ export default function ChatWindow({ messages, isPending, onSubmit }: ChatWindow
                         transition-colors duration-300
                       "
                     >
-                      {msg.text}
+                      <ReactMarkdown>{msg.text}</ReactMarkdown>
                     </div>
                     {msg.createdAt &&
                         <div

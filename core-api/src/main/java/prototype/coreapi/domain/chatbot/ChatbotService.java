@@ -11,6 +11,9 @@ import reactor.core.publisher.Mono;
 
 import java.util.UUID;
 
+import reactor.util.retry.Retry;
+import java.time.Duration;
+
 @Service
 @RequiredArgsConstructor
 public class ChatbotService {
@@ -38,6 +41,7 @@ public class ChatbotService {
                                 resp -> Mono.error(new IllegalStateException("Inference Service 준비 중"))
                         )
                         .toBodilessEntity()
+                        .retryWhen(Retry.backoff(3, Duration.ofSeconds(2)).maxBackoff(Duration.ofSeconds(10)))
                         .then()
                 );
     }
@@ -55,6 +59,7 @@ public class ChatbotService {
                         .bodyValue(reqDto)
                         .retrieve()
                         .bodyToFlux(ChatChunk.class)
+                        .retryWhen(Retry.backoff(3, Duration.ofSeconds(2)).maxBackoff(Duration.ofSeconds(10)))
                         .onErrorMap(throwable -> new RuntimeException("LLM 에러", throwable))
                 );
     }

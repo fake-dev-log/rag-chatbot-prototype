@@ -1,21 +1,19 @@
 import { useState } from 'react';
-import { FiChevronLeft, FiChevronRight } from 'react-icons/fi';
-import type {ChatResponse} from "@apis/types/chat.ts";
-import Logo from "@components/Logo.tsx";
+import { FiChevronLeft, FiChevronRight, FiHome, FiUsers, FiLogOut } from 'react-icons/fi';
+import { NavLink } from 'react-router-dom';
+import Logo from '@components/Logo.tsx';
+import {APP_NAME} from "@constants";
+import useAuthStore from "@stores/auth.ts";
+import { useSignOut } from "@apis/hooks/auth.ts";
 
-type SidebarProps = {
-  chats: ChatResponse[];
-  onSelect: (id: number) => void;
-  onHome: () => void;
-};
-
-export default function Sidebar({ chats, onSelect, onHome }: SidebarProps) {
+const Sidebar = () => {
   const [collapsed, setCollapsed] = useState(false);
   const [iconCollapsed, setIconCollapsed] = useState(false);
+  const { role } = useAuthStore.getState();
+  const { mutate: signOut } = useSignOut();
 
   const toggleSidebar = () => {
     setCollapsed(prev => !prev);
-    // Delay icon flip to match width transition
     setTimeout(() => {
       setIconCollapsed(prev => !prev);
     }, 300);
@@ -27,49 +25,57 @@ export default function Sidebar({ chats, onSelect, onHome }: SidebarProps) {
         collapsed ? 'w-16' : 'w-64'
       }`}
     >
-      <div className={`flex ${collapsed ? 'flex-col' : 'flex-row'}`}>
-        <div onClick={onHome} className="flex grow items-center p-4 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200">
+      <div className="flex items-center justify-between p-4 border-b border-gray-300 dark:border-gray-600">
+        <NavLink to="/" className="flex items-center cursor-pointer">
           <Logo size={24} />
-          {!collapsed && <span className="ml-2 text-lg font-semibold text-gray-800 dark:text-gray-100">DemoRAG</span>}
-        </div>
-        {/* toggle button aligned right */}
-        <div className="flex justify-end hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200">
-          <button
-            onClick={toggleSidebar}
-            className="p-2 m-2 text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 focus:outline-none rounded cursor-pointer transition-colors duration-200"
-          >
-            {iconCollapsed ? <FiChevronRight size={20} /> : <FiChevronLeft size={20} />}
-          </button>
-        </div>
+          {!collapsed && <span className="ml-2 text-lg font-semibold text-gray-800 dark:text-gray-100">{APP_NAME}</span>}
+        </NavLink>
+        <button
+          onClick={toggleSidebar}
+          className="transform text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400"
+        >
+          {iconCollapsed ? <FiChevronRight size={20} /> : <FiChevronLeft size={20} />}
+        </button>
       </div>
 
-      {/* chat list */}
-      <ul className="flex-1 overflow-y-auto">
-        {chats.map(chat => (
-          <li
-            key={chat.id}
-            onClick={() => onSelect(chat.id)}
-            className="group flex items-center p-2 m-1 rounded hover:bg-indigo-100 dark:hover:bg-indigo-900 cursor-pointer transition-colors duration-200"
-          >
-            {!collapsed ? (
-              <div className="flex flex-col">
-                <span className="truncate text-gray-800 dark:text-gray-100">
-                  {chat.title}
-                </span>
-                <div className="overflow-hidden">
-                  <span className="block whitespace-nowrap text-sm text-gray-600 dark:text-gray-300 animate-marquee">
-                    {chat.lastMessagePreview}
-                  </span>
-                </div>
-              </div>
-            ) : (
-              <span className="block whitespace-nowrap text-gray-800 dark:text-gray-100 font-semibold animate-marquee-fast">
-                {chat.title}
-              </span>
-            )}
-          </li>
-        ))}
-      </ul>
+      <nav className="flex-1 px-2 py-4 space-y-2">
+        <NavLink
+          to="/"
+          className={({ isActive }) =>
+            isActive
+              ? "flex items-center px-4 py-2 text-gray-700 bg-gray-200 rounded-md dark:bg-gray-700 dark:text-gray-200"
+              : "flex items-center px-4 py-2 text-gray-600 transition-colors duration-300 transform rounded-md dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 dark:hover:text-gray-200 hover:text-gray-700"
+          }
+        >
+          <FiHome />
+          {!collapsed && <span className="mx-4 font-medium">Home</span>}
+        </NavLink>
+        { role === "ADMIN" &&
+        <NavLink
+          to="/admin/documents"
+          className={({ isActive }) =>
+            isActive
+              ? "flex items-center px-4 py-2 text-gray-700 bg-gray-200 rounded-md dark:bg-gray-700 dark:text-gray-200"
+              : "flex items-center px-4 py-2 mt-3 text-gray-600 transition-colors duration-300 transform rounded-md dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 dark:hover:text-gray-200 hover:text-gray-700"
+          }
+        >
+          <FiUsers />
+          {!collapsed && <span className="mx-4 font-medium">Documents</span>}
+        </NavLink>
+        }
+      </nav>
+
+      <div className="px-2 py-4">
+        <button
+          onClick={() => signOut()}
+          className="flex items-center px-4 py-2 w-full text-gray-600 transition-colors duration-300 transform rounded-md dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 dark:hover:text-gray-200 hover:text-gray-700"
+        >
+          <FiLogOut />
+          {!collapsed && <span className="mx-4 font-medium">Sign Out</span>}
+        </button>
+      </div>
     </div>
   );
-}
+};
+
+export default Sidebar;

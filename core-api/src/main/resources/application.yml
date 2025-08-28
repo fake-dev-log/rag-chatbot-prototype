@@ -33,4 +33,4 @@ logging:
 
 document:
   storage:
-    path: /volumes/documents
+    path: /app/documents

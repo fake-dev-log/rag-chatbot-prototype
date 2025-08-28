@@ -10,7 +10,7 @@ from langchain_core.documents import Document
 
 from ..embedding import hugging_face
 
-VECTOR_STORE_DIR = '../vector-store'
+VECTOR_STORE_DIR = '/app/vector-store'
 
 logger = logging.getLogger(__name__)
 

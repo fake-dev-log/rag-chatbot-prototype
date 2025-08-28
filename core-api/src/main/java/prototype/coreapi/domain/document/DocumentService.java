@@ -7,6 +7,7 @@ import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import prototype.coreapi.domain.document.dto.DocumentResponse;
+import prototype.coreapi.domain.document.enitity.Document;
 import prototype.coreapi.domain.document.repository.DocumentRepository;
 import prototype.coreapi.global.redis.OneTimeKeyStoreProvider;
 import reactor.core.publisher.Flux;
@@ -16,6 +17,9 @@ import java.io.File;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.UUID;
+
+import reactor.util.retry.Retry;
+import java.time.Duration;
 
 @Slf4j
 @Service
@@ -58,6 +62,19 @@ public class DocumentService {
                     // 3. Trigger indexing service
                     triggerIndexing(savedDocument.getPath())
                             .thenReturn(savedDocument) // Return the document after triggering
+                            .onErrorResume(e -> {
+                                log.error("Indexing failed for {}. Rolling back document save.", savedDocument.getPath(), e);
+                                // Delete physical file
+                                File file = new File(savedDocument.getPath());
+                                if (file.exists()) {
+                                    if (!file.delete()) {
+                                        log.warn("Failed to delete physical file on rollback: {}", savedDocument.getPath());
+                                    }
+                                }
+                                // Delete DB record and then propagate the error
+                                return documentRepository.delete(savedDocument)
+                                        .then(Mono.error(e));
+                            })
                 )
                 .map(DocumentResponse::from);
     }
@@ -86,7 +103,7 @@ public class DocumentService {
     private Mono<Void> triggerIndexing(String filePath) {
         String key = UUID.randomUUID().toString();
         String secret = UUID.randomUUID().toString();
-        record IndexingRequest(String filePath) {}
+        record IndexingRequest(String file_path) {}
 
         return oneTimeKeyStoreProvider.save(key, secret)
                 .then(webClient.post()
@@ -96,6 +113,7 @@ public class DocumentService {
                         .bodyValue(new IndexingRequest(filePath))
                         .retrieve()
                         .bodyToMono(Void.class)
+                        .retryWhen(Retry.backoff(3, Duration.ofSeconds(2)).maxBackoff(Duration.ofSeconds(10)))
                         .doOnError(e -> log.error("Failed to trigger indexing service for file: {}", filePath, e))
                 );
     }
@@ -111,6 +129,7 @@ public class DocumentService {
                         .header("X-API-SECRET", secret)
                         .retrieve()
                         .bodyToMono(Void.class)
+                        .retryWhen(Retry.backoff(3, Duration.ofSeconds(2)).maxBackoff(Duration.ofSeconds(10)))
                         .doOnError(e -> log.error("Failed to trigger de-indexing service for file: {}", fileName, e))
                 );
     }

@@ -15,6 +15,7 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
     volumes:
       - core-api-log:/app/logs
+      - documents:/app/documents
     ports:
       - "8080:8080"
     networks:
@@ -101,7 +102,10 @@ services:
       REDIS_HOST: redis
       CACHE_FOLDER: ${CACHE_FOLDER}
     healthcheck:
-      test: http://localhost:8000/health
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 #    depends_on:
 #      - llm-server
     volumes:
@@ -139,6 +143,11 @@ services:
     environment:
       REDIS_HOST: redis
       CACHE_FOLDER: ${CACHE_FOLDER}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     volumes:
       - indexing-service-log:/app/logs
       - huggingface-cache:${CACHE_FOLDER}

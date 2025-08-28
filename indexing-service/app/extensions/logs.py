@@ -60,7 +60,7 @@ LOGGING_CONFIG = {
         'file': {
             'formatter': 'json',
             'class': 'logging.handlers.RotatingFileHandler',
-            'filename': '../logs/indexing-service.log',
+            'filename': '/app/logs/indexing-service.log',
             'maxBytes': 1024 * 1024 * 10,  # = 10MB
             'backupCount': 10,
         },

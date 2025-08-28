@@ -1,16 +1,16 @@
 import { useForm } from 'react-hook-form';
-import { useLogin } from '@apis/hooks/auth.ts';
-import type { LoginRequest } from '@apis/types/auth.ts';
+import { useSignIn } from '@apis/hooks/auth.ts';
+import type { AuthRequest } from '@apis/types/auth.ts';
 import Logo from "@components/Logo.tsx";
 import {APP_NAME} from "@constants";
 
 export default function SignIn() {
-  const { register, handleSubmit } = useForm<LoginRequest>();
-  const login = useLogin();
-  const { isPending } = login;
+  const { register, handleSubmit } = useForm<AuthRequest>();
+  const signIn = useSignIn();
+  const { isPending } = signIn;
 
-  const onSubmit = (data: LoginRequest) => {
-    login.mutate(data);
+  const onSubmit = (data: AuthRequest) => {
+    signIn.mutate(data);
   };
 
   return (
