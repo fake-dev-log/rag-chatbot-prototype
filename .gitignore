@@ -651,3 +651,8 @@ sketch
 
 # End of https://www.toptal.com/developers/gitignore/api/intellij,pycharm,webstorm,visualstudiocode,python,java,react,node
 
+/client/.yarn/
+
+# Other
+/core-api/HELP.md
+/client/package-lock.json
