@@ -1,12 +1,14 @@
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 import useAuthStore from "@stores/auth.ts";
 import {baseURL} from "@apis/types/common.ts";
-import { useToastStore } from "@stores/toast.ts"; // Import Zustand store
+import { useToastStore } from "@stores/toast.ts";
 
 const api = axios.create({
   baseURL: baseURL,
   withCredentials: true,
-})
+});
+
+const loginFailMessage = "로그인이 만료되었습니다. 다시 로그인해주세요.";
 
 api.interceptors.request.use(
   config => {
@@ -25,7 +27,7 @@ api.interceptors.response.use(
     switch (error.response.status) {
       case 400:
         throw new Error(error.response.data?.message ?? "로그인에 실패했습니다.");
-      case 401:
+      case 401: {
         if (originalRequest.url.includes("/auth/refresh")) {
           return Promise.reject(error);
         }
@@ -40,16 +42,17 @@ api.interceptors.response.use(
               return api(originalRequest);
             } else {
               const errorData = response.data;
-              await handleExpired(errorData.message || "로그인이 만료되었습니다. 다시 로그인해주세요.");
+              await handleExpired(errorData.message || loginFailMessage);
             }
           }
         } catch (e) {
-          const errorMessage = (e as any)?.response?.data?.message || "로그인이 만료되었습니다. 다시 로그인해주세요.";                          
+          const errorMessage = (e as AxiosError).message || loginFailMessage;
           await handleExpired(errorMessage);
         }
-        const finalErrorMessage = error.response?.data?.message || "로그인이 만료되었습니다. 다시 로그인해주세요."
+        const finalErrorMessage = error.response?.data?.message || loginFailMessage;
         await handleExpired(finalErrorMessage);
         break;
+      }
       case 500:
         throw new Error(error.response.data.message ?? "서버 에러가 발생했습니다.");
       default:
@@ -60,7 +63,7 @@ api.interceptors.response.use(
   }
 )
 
-function handleExpired(message: string = "로그인이 만료되었습니다. 다시 로그인해주세요.") {
+function handleExpired(message: string = loginFailMessage) {
   useAuthStore.getState().signOut();
   useToastStore.getState().addToast(message, 'error'); // Use Zustand store
   window.location.href = "/sign-in";

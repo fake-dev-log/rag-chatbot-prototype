@@ -1,8 +1,8 @@
-export function Spinner({ size = 5 }: {size?: number}) {
+export function Spinner() {
   return (
     <div
       className={
-        `inline-block w-${size.toString()} h-${size.toString()} rounded-full border-${Math.ceil(size/2).toString()} border-transparent
+        `inline-block w-5 h-5 rounded-full border-3 border-transparent
          border-r-primary-light dark:border-r-primary-dark
          animate-spin transition-colors duration-300`
       }

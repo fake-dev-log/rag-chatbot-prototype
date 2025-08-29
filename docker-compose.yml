@@ -21,9 +21,13 @@ services:
     networks:
       - internal-net
     depends_on:
-      - postgres
-      - mongo
-      - redis
+      postgres:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
 
   postgres:
     image: postgres:17-alpine
@@ -41,6 +45,12 @@ services:
     volumes:
       - pg-data:/var/lib/postgresql/data
       - ./postgres-init.sql:/docker-entrypoint-initdb.d/postgres-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d prototype"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   redis:
     image: redis:8.0.1-alpine
@@ -78,10 +88,14 @@ services:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
     volumes:
-      # 데이터 영속화
       - mongo-data:/data/db
-      # 컨테이너 시작 시 실행될 초기화 스크립트
       - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh mongo:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   rag-service:
     build:
@@ -101,11 +115,6 @@ services:
       TOKENIZERS_PARALLELISM: false
       REDIS_HOST: redis
       CACHE_FOLDER: ${CACHE_FOLDER}
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
 #    depends_on:
 #      - llm-server
     volumes:
@@ -143,11 +152,6 @@ services:
     environment:
       REDIS_HOST: redis
       CACHE_FOLDER: ${CACHE_FOLDER}
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
     volumes:
       - indexing-service-log:/app/logs
       - huggingface-cache:${CACHE_FOLDER}
@@ -221,7 +225,7 @@ volumes:
     driver_opts:
       type: none
       o: bind
-      device: ${VOLUME_ROOT}/huggingface/cache
+      device: ${CACHE_FOLDER}
 
   documents:
     driver: local

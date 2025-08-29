@@ -80,27 +80,22 @@ public class ChatController {
                 });
     }
 
-    @RequestMapping(
+    @PostMapping(
             path = "/{chatId}/message",
-            method = { RequestMethod.POST, RequestMethod.GET },
             produces = MediaType.APPLICATION_NDJSON_VALUE  // "application/stream+json"
     )
     public Flux<ChatChunk> createMessageAsJson(
             @AuthenticationPrincipal LoginPrincipal principal,
             @PathVariable Long chatId,
-            @Valid @RequestBody(required = false) ChatbotRequest req
+            @Valid @RequestBody ChatbotRequest req
     ) {
-        String query = (req != null) ? req.getQuery() : "";
-        if (query == null || query.isBlank()) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST);
-        }
 
         return util.authorize(
-                        chatService.findById(principal.memberId()),
+                        chatService.findById(chatId),
                         chat -> chat.getMemberId().equals(principal.memberId()),
                         new BusinessException(ErrorCode.FORBIDDEN)
-                ).thenMany(chatService.handleUserMessage(chatId, query)
-                        .timeout(Duration.ofSeconds(30))
+                ).thenMany(chatService.handleUserMessage(chatId, req.getQuery())
+                        .timeout(Duration.ofSeconds(45))
                         .onErrorResume(TimeoutException.class,
                                 ex -> Flux.just(new ChatChunk("error", JsonNodeFactory.instance.textNode("응답 시간이 초과되었습니다.")))))
                 .concatWith(Mono.just(new ChatChunk("done", JsonNodeFactory.instance.booleanNode(true))));

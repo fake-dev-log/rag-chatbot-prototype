@@ -75,3 +75,62 @@ body,
   background-color: rgba(0, 0, 0, 0.2);
   border-radius: 4px;
 }
+
+/* --- Markdown Table Styles (Updated for Scoping) --- */
+
+/* .markdown-table 클래스가 있는 요소 내부의 table에만 스타일 적용 */
+.markdown-table table {
+  border-spacing: 0;
+  border-collapse: collapse;
+  display: block;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  width: 100%;
+  table-layout: fixed;
+  overflow: auto;
+}
+
+/* --- Light Mode Table Styles --- */
+.markdown-table tr {
+  background-color: var(--color-surface-light);
+  border-top: 1px solid var(--color-secondary-light);
+}
+
+.markdown-table tr:nth-child(2n) {
+  background-color: var(--color-background-light);
+}
+
+.markdown-table td,
+.markdown-table th {
+  padding: 8px 16px;
+  border: 1px solid var(--color-secondary-light);
+  color: var(--color-text-light);
+  word-break: break-word;
+}
+
+.markdown-table th {
+  font-weight: 600;
+  background-color: var(--color-background-light);
+}
+
+/* --- Dark Mode Table Styles --- */
+@media (prefers-color-scheme: dark) {
+  .markdown-table tr {
+    background-color: var(--color-surface-dark);
+    border-top: 1px solid var(--color-secondary-dark);
+  }
+
+  .markdown-table tr:nth-child(2n) {
+    background-color: var(--color-background-dark);
+  }
+
+  .markdown-table td,
+  .markdown-table th {
+    border: 1px solid var(--color-secondary-dark);
+    color: var(--color-text-dark);
+  }
+
+  .markdown-table th {
+    background-color: var(--color-background-dark);
+  }
+}

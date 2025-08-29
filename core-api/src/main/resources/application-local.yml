@@ -32,6 +32,10 @@ rag-service:
   api:
     baseUrl: http://rag-service:8000
 
+indexing-service:
+  api:
+    baseUrl: http://indexing-service:8001
+
 logging:
   level:
     io.r2dbc.proxy: DEBUG

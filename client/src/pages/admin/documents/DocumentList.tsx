@@ -1,7 +1,7 @@
 import {type ChangeEvent, useRef} from 'react';
 import { useDocumentList, useUploadDocument, useDeleteDocument } from '@apis/hooks/document.ts';
 
-const DocumentList = () => {
+function DocumentList() {
   const { data: documents, isLoading, error } = useDocumentList();
   const uploadDocument = useUploadDocument();
   const deleteDocument = useDeleteDocument();
@@ -72,6 +72,6 @@ const DocumentList = () => {
       </div>
     </div>
   );
-};
+}
 
 export default DocumentList;

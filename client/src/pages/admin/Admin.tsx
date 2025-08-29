@@ -5,4 +5,4 @@ export default function Admin() {
       <p className="mt-2 text-gray-600">Welcome to the admin dashboard.</p>
     </div>
   );
-};
+}

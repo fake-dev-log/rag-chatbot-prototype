@@ -1,7 +1,6 @@
-import React from 'react';
 import { useNavigate } from 'react-router-dom';
 
-const NoSuchContent: React.FC = () => {
+function NoSuchContent() {
   const navigate = useNavigate();
   const goBack = () => navigate(-1);
 
@@ -21,6 +20,6 @@ const NoSuchContent: React.FC = () => {
       </div>
     </div>
   );
-};
+}
 
 export default NoSuchContent;

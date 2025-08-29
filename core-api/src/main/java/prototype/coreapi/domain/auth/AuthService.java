@@ -1,6 +1,5 @@
 package prototype.coreapi.domain.auth;
 
-
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.ReactiveAuthenticationManager;
@@ -46,10 +45,10 @@ public class AuthService {
                     Member member = (Member) auth.getPrincipal();
                     return validateUser(member)
                             .doOnSuccess(Member::updateLastLoginAt)
-                            .map(validMember -> {
-                                AuthTokens tokens = createAndStoreAuthTokens(validMember);
-                                return createAuthInfoFromAuthTokensAndMember(tokens, validMember);
-                            });
+                            .flatMap(validMember ->
+                                    createAndStoreAuthTokens(validMember)
+                                            .map(tokens -> createAuthInfoFromAuthTokensAndMember(tokens, validMember))
+                            );
                 })
                 .onErrorMap(BadCredentialsException.class,
                         ex -> new BusinessException(ErrorCode.WRONG_PASSWORD))
@@ -65,21 +64,19 @@ public class AuthService {
         }
         Long userId = jwtService.extractMemberId(requestRefreshToken);
 
-        return Mono.fromCallable(() ->
-                        refreshTokenStoreProvider.get(userId)
-                                .orElseThrow(() -> new BusinessException(ErrorCode.EXPIRED_REFRESH_TOKEN))
-                )
-                .flatMap(stored -> {
+        return refreshTokenStoreProvider.get(userId)
+                .flatMap(optionalStored -> {
+                    String stored = optionalStored.orElseThrow(() -> new BusinessException(ErrorCode.EXPIRED_REFRESH_TOKEN));
                     if (!stored.equals(requestRefreshToken)) {
                         return Mono.error(new BusinessException(ErrorCode.INVALID_TOKEN));
                     }
                     return memberService.findById(userId);
                 })
                 .flatMap(member -> validateUser(member)
-                        .map(validMember -> {
-                            AuthTokens tokens = createAndStoreAuthTokens(validMember);
-                            return createAuthInfoFromAuthTokensAndMember(tokens, validMember);
-                        })
+                        .flatMap(validMember ->
+                                createAndStoreAuthTokens(validMember)
+                                        .map(tokens -> createAuthInfoFromAuthTokensAndMember(tokens, validMember))
+                        )
                 )
                 .doOnError(BusinessException.class, ex -> {
                     // 사용 불가 사용자면 리프레시 토큰 삭제
@@ -88,19 +85,23 @@ public class AuthService {
                             || code == ErrorCode.DELETED_USER
                             || code == ErrorCode.SUSPENDED_USER
                             || code == ErrorCode.INACTIVE_USER) {
-                        refreshTokenStoreProvider.delete(userId);
+                        refreshTokenStoreProvider.delete(userId).subscribe();
                     }
                 });
     }
 
-    public void signOut(String accessToken, Long userId) {
-        refreshTokenStoreProvider.delete(userId);
+    public Mono<Void> signOut(String accessToken, Long userId) {
+        Mono<Void> deleteRefresh = refreshTokenStoreProvider.delete(userId);
+
         long ttlMillis = jwtService.getRemainingValidity(accessToken);
+        Mono<Boolean> blacklistMono = Mono.just(false);
         if (ttlMillis >= 1000) {
-            tokenBlacklistStoreProvider.blacklistHashed(
+            blacklistMono = tokenBlacklistStoreProvider.blacklistHashed(
                     accessToken, Duration.ofMillis(ttlMillis)
             );
         }
+
+        return Mono.when(deleteRefresh, blacklistMono).then();
     }
 
     private Mono<Member> validateUser(Member member) {
@@ -119,17 +120,16 @@ public class AuthService {
         return Mono.just(member);
     }
 
-    private AuthTokens createAndStoreAuthTokens(Member member) {
+    private Mono<AuthTokens> createAndStoreAuthTokens(Member member) {
         String accessToken = jwtService.generateAccessToken(member.getId(), member.getAuthorities());
         String refreshToken = jwtService.generateRefreshToken(member.getId());
 
         Duration accessTtl = Duration.ofMillis(jwtService.getRemainingValidity(accessToken));
-        accessTokenStoreProvider.save(member.getId(), accessToken, accessTtl);
-
         Duration refreshTtl = Duration.ofMillis(jwtService.getRemainingValidity(refreshToken));
-        refreshTokenStoreProvider.save(member.getId(), refreshToken, refreshTtl);
 
-        return new AuthTokens(accessToken, refreshToken, refreshTtl);
+        return accessTokenStoreProvider.save(member.getId(), accessToken, accessTtl)
+                .then(refreshTokenStoreProvider.save(member.getId(), refreshToken, refreshTtl))
+                .thenReturn(new AuthTokens(accessToken, refreshToken, refreshTtl));
     }
 
     private AuthInfo createAuthInfoFromAuthTokensAndMember(

@@ -1,4 +1,4 @@
-package prototype.coreapi.domain.document.enitity;
+package prototype.coreapi.domain.document.entity;
 
 import lombok.*;
 import org.springframework.data.relational.core.mapping.Table;

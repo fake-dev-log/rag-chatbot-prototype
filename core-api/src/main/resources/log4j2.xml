@@ -11,7 +11,7 @@
         <!-- 파일  -->
         <RollingFile name ="logFile">
             <FileName>./logs/core-api.log</FileName>
-            <FilePattern>./logs/%d{yyyy-MM-dd-hh-mm}/core-api.zip</FilePattern>
+            <FilePattern>./logs/%d{yyyy-MM-dd-HH}/core-api.zip</FilePattern>
             <PatternLayout>
                 <Pattern>%d{yyyy-MM-dd HH:mm:ss} %5p [%c] %m%n</Pattern>
             </PatternLayout>
@@ -23,7 +23,7 @@
 
         <RollingFile name ="logFileError">
             <FileName>./logs/core-api-error.log</FileName>
-            <FilePattern>./logs/%d{yyyy-MM-dd-hh-mm}/core-api-error.zip</FilePattern>
+            <FilePattern>./logs/%d{yyyy-MM-dd-HH}/core-api-error.zip</FilePattern>
             <PatternLayout>
                 <Pattern>%d{yyyy-MM-dd HH:mm:ss} %5p [%c] %m%n</Pattern>
             </PatternLayout>

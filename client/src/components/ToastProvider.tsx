@@ -1,20 +1,9 @@
-import type {FC, ReactNode} from 'react';
+import type {ReactNode} from 'react';
 import { createPortal } from 'react-dom';
-import { useToastStore } from '@stores/toast'; // Import the Zustand store
+import { useToastStore } from '@stores/toast';
 
-interface ToastProviderProps {
-  children: ReactNode;
-}
-
-export const ToastProvider: FC<ToastProviderProps> = ({ children }) => {
+export function ToastProvider({ children }: { children: ReactNode }) {
   const toasts = useToastStore((state) => state.toasts); // Get toasts from Zustand store
-
-  const toastContainer = document.getElementById('toast-root');
-  if (!toastContainer) {
-    const div = document.createElement('div');
-    div.id = 'toast-root';
-    document.body.appendChild(div);
-  }
 
   return (
     <>
@@ -50,4 +39,4 @@ export const ToastProvider: FC<ToastProviderProps> = ({ children }) => {
       )}
     </>
   );
-};
+}

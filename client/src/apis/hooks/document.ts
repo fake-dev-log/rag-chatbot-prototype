@@ -35,7 +35,7 @@ export function useUploadDocument() {
       return response.data as Document;
     },
     onSuccess: (data) => {
-      useToastStore.getState().addToast(`Document '${data.name}' uploaded and indexing started.`, 'success');
+      useToastStore.getState().addToast(`Document '${data.name}' uploaded and indexing completed.`, 'success');
       return queryClient.invalidateQueries({ queryKey: ['documents', 'list'] });
     },
   });
@@ -52,7 +52,7 @@ export function useDeleteDocument() {
       await api.delete(`${baseURL}${API_BASE_URL.documents}/${documentId}`);
     },
     onSuccess: (_, documentId) => {
-      useToastStore.getState().addToast(`Document ID '${documentId}' deleted and de-indexing started.`, 'success');
+      useToastStore.getState().addToast(`Document ID '${documentId}' deleted and de-indexing completed.`, 'success');
       return queryClient.invalidateQueries({ queryKey: ['documents', 'list'] });
     },
   });

@@ -1,8 +1,9 @@
 package prototype.coreapi.global.redis;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
 import org.springframework.stereotype.Component;
+import reactor.core.publisher.Mono;
 
 import java.time.Duration;
 import java.util.Optional;
@@ -13,17 +14,17 @@ import static prototype.coreapi.global.enums.RedisKeyPrefix.REFRESH_TOKEN;
 @RequiredArgsConstructor
 public class RefreshTokenStoreProvider {
 
-    private final StringRedisTemplate redisTemplate;
+    private final ReactiveStringRedisTemplate redisTemplate;
 
-    public void save(Long userId, String token, Duration ttl) {
-        redisTemplate.opsForValue().set(REFRESH_TOKEN.key(userId), token, ttl);
+    public Mono<Boolean> save(Long userId, String token, Duration ttl) {
+        return redisTemplate.opsForValue().set(REFRESH_TOKEN.key(userId), token, ttl);
     }
 
-    public Optional<String> get(Long userId) {
-        return Optional.ofNullable(redisTemplate.opsForValue().get(REFRESH_TOKEN.key(userId)));
+    public Mono<Optional<String>> get(Long userId) {
+        return redisTemplate.opsForValue().get(REFRESH_TOKEN.key(userId)).map(Optional::ofNullable).defaultIfEmpty(Optional.empty());
     }
 
-    public void delete(Long userId) {
-        redisTemplate.delete(REFRESH_TOKEN.key(userId));
+    public Mono<Void> delete(Long userId) {
+        return redisTemplate.delete(REFRESH_TOKEN.key(userId)).then();
     }
 }

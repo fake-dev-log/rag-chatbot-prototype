@@ -1,6 +1,6 @@
 package prototype.coreapi.domain.document.dto;
 
-import prototype.coreapi.domain.document.enitity.Document;
+import prototype.coreapi.domain.document.entity.Document;
 
 import java.time.LocalDateTime;
 

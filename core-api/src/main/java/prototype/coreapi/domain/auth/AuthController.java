@@ -1,7 +1,6 @@
 package prototype.coreapi.domain.auth;
 
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -90,9 +89,7 @@ public class AuthController {
             return Mono.error(new BusinessException(ErrorCode.AUTH_FAILED));
         }
         String accessToken = authHeader.substring(7);
-        return Mono.fromRunnable(() ->
-                authService.signOut(accessToken, principal.memberId())
-        );
+        return authService.signOut(accessToken, principal.memberId());
     }
 
     // —————————————————————— helper methods ——————————————————————

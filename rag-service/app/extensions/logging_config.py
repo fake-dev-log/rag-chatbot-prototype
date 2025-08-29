@@ -2,6 +2,7 @@ import logging
 import json
 from pathlib import Path
 
+# Ensure the log directory exists
 Path.mkdir(Path('/app/logs'), exist_ok=True)
 
 
@@ -29,8 +30,8 @@ def get_log(record):
     }
 
     if hasattr(record, "extra_info"):
-        d["req"] = record.extra_info["req"]
-        d["res"] = record.extra_info["res"]
+        d["req"] = record.extra_info.get("req") # Use .get()
+        d["res"] = record.extra_info.get("res") # Use .get()
 
     return d
 
@@ -86,5 +87,14 @@ LOGGING_CONFIG = {
             'level': 'TRACE',
             'propagate': False
         },
+        'app': {
+            'handlers': ['default'],
+            'level': 'INFO',
+            'propagate': False  # Prevent messages from being passed to the root logger if already handled
+        },
+    },
+    'root': {
+        'handlers': ['default'],
+        'level': 'INFO',
     },
 }

@@ -1,17 +1,11 @@
 package prototype.coreapi.domain.auth.security;
 
-
-import com.fasterxml.jackson.databind.ObjectMapper;
 import prototype.coreapi.domain.auth.dto.LoginPrincipal;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -20,13 +14,11 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.server.WebFilter;
 import org.springframework.web.server.WebFilterChain;
-import prototype.coreapi.global.exception.BusinessException;
 import prototype.coreapi.global.exception.ErrorCode;
 import prototype.coreapi.global.redis.TokenBlacklistStoreProvider;
-import prototype.coreapi.global.response.RestResponse;
+import prototype.coreapi.global.response.WebfluxErrorResponseWriter;
 import reactor.core.publisher.Mono;
 
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -42,7 +34,7 @@ public class JwtAuthenticationWebFilter implements WebFilter {
 
     private final JwtService jwtService;
     private final TokenBlacklistStoreProvider blacklist;
-    private final ObjectMapper om = new ObjectMapper();
+        private final WebfluxErrorResponseWriter webfluxErrorResponseWriter;
 
     @Override
     @NonNull
@@ -60,52 +52,40 @@ public class JwtAuthenticationWebFilter implements WebFilter {
         }
 
         final String token = authHeader.substring(7);
-        if (blacklist.isBlacklisted(token)) {
-            return writeError(exchange, ErrorCode.INVALID_TOKEN);
-        }
 
-        try {
-            if (!jwtService.isValidToken(token)) {
-                return writeError(exchange, ErrorCode.INVALID_TOKEN);
-            }
+        return blacklist.isBlacklisted(token)
+                .flatMap(isBlacklisted -> {
+                    if (isBlacklisted) {
+                        return webfluxErrorResponseWriter.writeError(exchange, ErrorCode.INVALID_TOKEN);
+                    }
 
-            Long memberId = jwtService.extractMemberId(token);
-            List<GrantedAuthority> authorities = jwtService.extractRoles(token).stream()
-                    .map(SimpleGrantedAuthority::new)
-                    .collect(Collectors.toList());
+                    try {
+                        if (!jwtService.isValidToken(token)) {
+                            return webfluxErrorResponseWriter.writeError(exchange, ErrorCode.INVALID_TOKEN);
+                        }
 
-            LoginPrincipal principal = new LoginPrincipal(memberId);
-            UsernamePasswordAuthenticationToken auth =
-                    new UsernamePasswordAuthenticationToken(principal, null, authorities);
+                        Long memberId = jwtService.extractMemberId(token);
+                        List<GrantedAuthority> authorities = jwtService.extractRoles(token).stream()
+                                .map(SimpleGrantedAuthority::new)
+                                .collect(Collectors.toList());
 
-            return chain.filter(exchange)
-                    .contextWrite(ReactiveSecurityContextHolder.withAuthentication(auth));
+                        LoginPrincipal principal = new LoginPrincipal(memberId);
+                        UsernamePasswordAuthenticationToken auth =
+                                new UsernamePasswordAuthenticationToken(principal, null, authorities);
 
-        } catch (ExpiredJwtException e) {
-            return writeError(exchange, ErrorCode.EXPIRED_TOKEN);
-        } catch (JwtException e) {
-            return writeError(exchange, ErrorCode.INVALID_TOKEN);
-        } catch (Exception e) {
-            return writeError(exchange, ErrorCode.SERVICE_FAIL);
-        }
+                        return chain.filter(exchange)
+                                .contextWrite(ReactiveSecurityContextHolder.withAuthentication(auth));
+
+                    } catch (ExpiredJwtException e) {
+                        return webfluxErrorResponseWriter.writeError(exchange, ErrorCode.EXPIRED_TOKEN);
+                    } catch (JwtException e) {
+                        return webfluxErrorResponseWriter.writeError(exchange, ErrorCode.INVALID_TOKEN);
+                    } catch (Exception e) {
+                        return webfluxErrorResponseWriter.writeError(exchange, ErrorCode.SERVICE_FAIL);
+                    }
+                });
     }
 
-    private Mono<Void> writeError(ServerWebExchange exchange, ErrorCode code) {
-        exchange.getResponse().setStatusCode(HttpStatus.valueOf(code.getCode()));
-        exchange.getResponse().getHeaders().setContentType(MediaType.APPLICATION_JSON);
-
-        ResponseEntity<?> resp = RestResponse.customError(new BusinessException(code));
-        byte[] bytes;
-        try {
-            bytes = om.writeValueAsString(resp).getBytes(StandardCharsets.UTF_8);
-        } catch (Exception ex) {
-            bytes = ("{\"error\":\"" + code.name() + "\"}").getBytes(StandardCharsets.UTF_8);
-        }
-
-        DataBuffer buffer = exchange.getResponse()
-                .bufferFactory()
-                .wrap(bytes);
-        return exchange.getResponse().writeWith(Mono.just(buffer));
-    }
+    
 }
 

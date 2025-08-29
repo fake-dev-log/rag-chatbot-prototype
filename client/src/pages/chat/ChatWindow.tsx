@@ -5,6 +5,7 @@ import { ChevronUpIcon, ChevronDownIcon } from 'lucide-react';
 import { Spinner } from '@components/Spinner';
 import type {Message} from "@apis/types/chat.ts";
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from "remark-gfm";
 
 interface ChatWindowProps {
   messages: Message[];
@@ -31,7 +32,7 @@ export default function ChatWindow({ messages, isPending, onSubmit }: ChatWindow
   }, [messages]);
 
   return (
-    <div className="flex flex-col h-full w-full">
+    <div className="flex flex-col h-full w-full gap-1">
       {/* 메시지 영역 */}
         <div
           ref={containerRef}
@@ -69,13 +70,18 @@ export default function ChatWindow({ messages, isPending, onSubmit }: ChatWindow
                   <div>
                     <div
                       className="
-                        flex-box px-4 py-2 rounded-lg break-words whitespace-pre-wrap justify-self-start
+                        markdown-table
+                        flex-box px-4 py-4 rounded-lg break-words whitespace-pre-wrap justify-self-start
                         bg-surface-light text-text-light
                         dark:bg-surface-dark dark:text-text-dark
                         transition-colors duration-300
                       "
                     >
-                      <ReactMarkdown>{msg.text}</ReactMarkdown>
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                      >
+                        {msg.text}
+                      </ReactMarkdown>
                     </div>
                     {msg.createdAt &&
                         <div

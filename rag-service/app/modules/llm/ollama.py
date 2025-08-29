@@ -13,7 +13,7 @@ class Ollama:
             llm_api_base = "http://localhost:11434"
 
         if model is None:
-            model = "gpt-oss:20b"
+            model = os.getenv("OLLAMA_MODEL", "gpt-oss:20b")
         self.ollama_model = ChatOllama(
             base_url=llm_api_base,
             model=model,

@@ -1,20 +1,31 @@
-FROM openjdk:21-jdk-slim AS core-api-base
-
-RUN apt-get update && \
-    DEBIAN_FRONTEND=noninteractive apt-get --no-install-recommends install -yq \
-      vim
-
-FROM core-api-base AS core-api
-
-ARG ACTIVE_PROFILE
+# --- Build Stage ---
+FROM openjdk:21-jdk-slim AS builder
 
 WORKDIR /app
 
-COPY build.gradle settings.gradle gradlew /app/
+# Copy Gradle wrapper and build files first to leverage caching
+COPY gradlew .
+COPY gradle/wrapper/gradle-wrapper.jar gradle/wrapper/
+COPY gradle/wrapper/gradle-wrapper.properties gradle/wrapper/
+COPY build.gradle settings.gradle /app/
 
-COPY . /app
+# Copy all source code
+COPY src ./src
 
+# Build the application
 RUN chmod +x gradlew
-RUN ./gradlew clean build -Pprofile=${ACTIVE_PROFILE}
+RUN ./gradlew clean build -x test -Pprofile=${ACTIVE_PROFILE}
 
-CMD ["java", "-jar", "build/libs/core-api-0.0.1.jar"]
+# --- Runtime Stage ---
+FROM openjdk:21-jdk-slim
+
+WORKDIR /app
+
+# Copy the built JAR from the builder stage
+COPY --from=builder /app/build/libs/*.jar app.jar
+
+# Expose port (if applicable, based on application.yml)
+EXPOSE 8080
+
+# Run the application
+CMD ["java", "-jar", "app.jar"]

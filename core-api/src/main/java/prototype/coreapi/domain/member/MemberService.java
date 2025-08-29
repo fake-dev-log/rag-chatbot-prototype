@@ -1,5 +1,6 @@
 package prototype.coreapi.domain.member;
 
+import org.springframework.security.core.context.SecurityContext;
 import prototype.coreapi.domain.member.dto.MemberRequest;
 import prototype.coreapi.domain.member.entity.Member;
 import prototype.coreapi.domain.member.mapper.MemberMapper;
@@ -10,9 +11,8 @@ import org.springframework.stereotype.Service;
 import prototype.coreapi.global.exception.BusinessException;
 import prototype.coreapi.global.exception.ErrorCode;
 import reactor.core.publisher.Mono;
-
-import static prototype.coreapi.global.util.SecurityContextUtil.isAdmin;
-import static prototype.coreapi.global.util.SecurityContextUtil.isNotAuthenticated;
+import org.springframework.security.core.context.ReactiveSecurityContextHolder;
+import prototype.coreapi.global.enums.Role;
 
 @Service
 @RequiredArgsConstructor
@@ -46,18 +46,24 @@ public class MemberService {
                     Member member = memberMapper.toEntity(request);
                     member.encodePassword(request.getPassword(), passwordEncoder);
 
-                    // Admin 권한이면 role/status 설정 허용
-                    if (!isNotAuthenticated() && isAdmin()) {
-                        if (request.getRole() != null) {
-                            member.updateRole(request.getRole());
-                        }
-                        if (request.getStatus() != null) {
-                            member.updateStatus(request.getStatus());
-                        }
-                    }
-
-                    // 리액티브 저장
-                    return memberRepository.save(member);
+                    // Check if authenticated and is ADMIN reactively
+                    return ReactiveSecurityContextHolder.getContext()
+                            .map(SecurityContext::getAuthentication)
+                            .defaultIfEmpty(null) // Handle unauthenticated case
+                            .flatMap(authentication -> {
+                                if (authentication != null && authentication.isAuthenticated() &&
+                                        authentication.getAuthorities().stream()
+                                                .anyMatch(a -> a.getAuthority().equals("ROLE_" + Role.ADMIN.name()))) {
+                                    // Admin 권한이면 role/status 설정 허용
+                                    if (request.getRole() != null) {
+                                        member.updateRole(request.getRole());
+                                    }
+                                    if (request.getStatus() != null) {
+                                        member.updateStatus(request.getStatus());
+                                    }
+                                }
+                                return memberRepository.save(member); // Reactive save
+                            });
                 });
     }
 }

@@ -6,10 +6,10 @@ import {APP_NAME} from "@constants";
 import useAuthStore from "@stores/auth.ts";
 import { useSignOut } from "@apis/hooks/auth.ts";
 
-const Sidebar = () => {
+function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const [iconCollapsed, setIconCollapsed] = useState(false);
-  const { role } = useAuthStore.getState();
+  const role = useAuthStore((state) => state.role);
   const { mutate: signOut } = useSignOut();
 
   const toggleSidebar = () => {
@@ -76,6 +76,6 @@ const Sidebar = () => {
       </div>
     </div>
   );
-};
+}
 
 export default Sidebar;

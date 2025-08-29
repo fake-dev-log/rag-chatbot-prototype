@@ -5,8 +5,6 @@ ARG BUILD_MODE
 ENV LANG='C.UTF-8' \
     LC_ALL='C-UTF-8'
 
-RUN npm install -g npm@10.9.2
-
 COPY package.json /app/
 
 WORKDIR /app/

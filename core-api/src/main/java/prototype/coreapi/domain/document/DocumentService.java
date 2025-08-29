@@ -7,7 +7,7 @@ import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import prototype.coreapi.domain.document.dto.DocumentResponse;
-import prototype.coreapi.domain.document.enitity.Document;
+import prototype.coreapi.domain.document.entity.Document;
 import prototype.coreapi.domain.document.repository.DocumentRepository;
 import prototype.coreapi.global.redis.OneTimeKeyStoreProvider;
 import reactor.core.publisher.Flux;
@@ -18,6 +18,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.UUID;
 
+import reactor.core.scheduler.Schedulers;
 import reactor.util.retry.Retry;
 import java.time.Duration;
 
@@ -33,6 +34,9 @@ public class DocumentService {
     @Value("${document.storage.path}")
     private String documentStoragePath;
 
+    @Value("${indexing-service.api.baseUrl}")
+    private String indexingServiceBaseUrl;
+
     public Flux<DocumentResponse> findAll() {
         return documentRepository.findAll()
                 .map(DocumentResponse::from);
@@ -46,18 +50,21 @@ public class DocumentService {
 
         // 1. Save file to disk
         return filePart.transferTo(destinationFile)
+                // 2. 파일 저장이 완료되면 'then'을 통해 다음 작업을 수행합니다.
                 .then(Mono.defer(() -> {
-                    // 2. Create and save document entity to DB
-                    File file = destinationFile.toFile();
-                    String fileType = getFileExtension(originalFilename);
-                    Document document = Document.builder()
-                            .name(originalFilename)
-                            .path(destinationFile.toString())
-                            .type(fileType)
-                            .size(file.length())
-                            .build();
-                    return documentRepository.save(document);
-                }))
+            // 2. Create and save document entity to DB
+            return Mono.fromCallable(() -> {
+                File file = destinationFile.toFile();
+                String fileType = getFileExtension(originalFilename);
+                return Document.builder()
+                        .name(originalFilename)
+                        .path(destinationFile.toString())
+                        .type(fileType)
+                        .size(file.length())
+                        .build();
+            }).subscribeOn(Schedulers.boundedElastic())
+                    .flatMap(documentRepository::save);
+        }))
                 .flatMap(savedDocument ->
                     // 3. Trigger indexing service
                     triggerIndexing(savedDocument.getPath())
@@ -65,15 +72,16 @@ public class DocumentService {
                             .onErrorResume(e -> {
                                 log.error("Indexing failed for {}. Rolling back document save.", savedDocument.getPath(), e);
                                 // Delete physical file
-                                File file = new File(savedDocument.getPath());
-                                if (file.exists()) {
-                                    if (!file.delete()) {
-                                        log.warn("Failed to delete physical file on rollback: {}", savedDocument.getPath());
+                                return Mono.fromRunnable(() -> {
+                                    File file = new File(savedDocument.getPath());
+                                    if (file.exists()) {
+                                        if (!file.delete()) {
+                                            log.warn("Failed to delete physical file on rollback: {}", savedDocument.getPath());
+                                        }
                                     }
-                                }
-                                // Delete DB record and then propagate the error
-                                return documentRepository.delete(savedDocument)
-                                        .then(Mono.error(e));
+                                }).subscribeOn(Schedulers.boundedElastic())
+                                        .then(documentRepository.delete(savedDocument)) // Delete DB record
+                                        .then(Mono.error(e)); // Then propagate the error
                             })
                 )
                 .map(DocumentResponse::from);
@@ -82,18 +90,19 @@ public class DocumentService {
     public Mono<Void> deleteById(Long documentId) {
         return documentRepository.findById(documentId)
                 .switchIfEmpty(Mono.error(new IllegalArgumentException("Document not found")))
-                .flatMap(document -> {
+                .flatMap(document ->
                     // 1. Delete physical file
-                    File file = new File(document.getPath());
-                    if (file.exists()) {
-                        if (!file.delete()) {
-                            log.warn("Failed to delete physical file: {}", document.getPath());
+                    Mono.fromRunnable(() -> {
+                        File file = new File(document.getPath());
+                        if (file.exists()) {
+                            if (!file.delete()) {
+                                log.warn("Failed to delete physical file: {}", document.getPath());
+                            }
                         }
-                    }
-                    // 2. Trigger de-indexing service
-                    return triggerDeindexing(document.getName())
-                            .then(Mono.just(document)); // Pass document to the next step
-                })
+                    }).subscribeOn(Schedulers.boundedElastic())
+                            .then(triggerDeindexing(document.getName())) // 2. Trigger de-indexing service
+                            .thenReturn(document) // Pass document to the next step
+                )
                 .flatMap(document ->
                     // 3. Delete DB record
                     documentRepository.deleteById(document.getId())
@@ -107,7 +116,7 @@ public class DocumentService {
 
         return oneTimeKeyStoreProvider.save(key, secret)
                 .then(webClient.post()
-                        .uri("http://indexing-service:8001/documents")
+                        .uri(indexingServiceBaseUrl + "/documents")
                         .header("X-API-KEY", key)
                         .header("X-API-SECRET", secret)
                         .bodyValue(new IndexingRequest(filePath))
@@ -124,7 +133,7 @@ public class DocumentService {
 
         return oneTimeKeyStoreProvider.save(key, secret)
                 .then(webClient.delete()
-                        .uri("http://indexing-service:8001/documents/{fileName}", fileName)
+                        .uri(indexingServiceBaseUrl + "/documents/{fileName}", fileName)
                         .header("X-API-KEY", key)
                         .header("X-API-SECRET", secret)
                         .retrieve()
