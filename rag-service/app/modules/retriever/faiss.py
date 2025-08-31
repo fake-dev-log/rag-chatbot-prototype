@@ -18,14 +18,14 @@ class Faiss:
 
     def _load_or_create_index(self) -> FAISS:
         try:
-            logger.info(f"FAISS 인덱스를 로드합니다. 경로: {self.vector_store_dir}")
+            logger.info(f"Loading FAISS index. Path: {self.vector_store_dir}")
             return FAISS.load_local(
                 folder_path=self.vector_store_dir,
                 embeddings=self.embedding_model,
                 allow_dangerous_deserialization=True
             )
         except Exception as e:
-            logger.warning(f"FAISS 인덱스 로드 실패: {e}. 비어있는 새 인덱스를 생성합니다.")
+            logger.warning(f"Failed to load FAISS index: {e}. Creating a new empty index.")
 
             dummy_embedding = self.embedding_model.embed_query("test")
             dimension = len(dummy_embedding)

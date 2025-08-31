@@ -24,14 +24,14 @@ public class Message {
 
     private Sender sender;         // USER or BOT
 
-    private Object content;        // String 이나 JSON 객체
+    private Object content;        // String or JSON object
 
-    private String contentType;    // "text", "image", 등
+    private String contentType;    // e.g., "text", "image"
 
-    private Long sequence;         // 메시지 순서
+    private Long sequence;         // Message sequence
 
     @CreatedDate
-    private Instant createdAt;     // 자동으로 채워짐
+    private Instant createdAt;     // Automatically populated
 
     private List<SourceDocument> sources;
 }

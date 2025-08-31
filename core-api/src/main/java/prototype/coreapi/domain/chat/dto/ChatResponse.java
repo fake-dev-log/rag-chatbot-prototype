@@ -9,32 +9,32 @@ import java.util.List;
 
 @Getter
 @Setter
-@Schema(description = "대화 응답")
+@Schema(description = "Chat response")
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
 @Builder
 public class ChatResponse {
 
-    @Schema(description = "대화 PK", example = "1")
+    @Schema(description = "Chat PK", example = "1")
     private Long id;
 
-    @Schema(description = "회원 이메일", example = "test@example.com")
+    @Schema(description = "Member email", example = "test@example.com")
     private String memberEmail;
 
-    @Schema(description = "대화 제목", example = "2025년 06월 02일의 대화")
+    @Schema(description = "Chat title", example = "2025-06-02 Chat")
     private String title;
 
-    @Schema(description = "최근 메시지 미리보기", example = "이게 뭐야?")
+    @Schema(description = "Last message preview", example = "What is this?")
     private String lastMessagePreview;
 
-    @Schema(description = "아카이브 여부", example = "false")
+    @Schema(description = "Archived status", example = "false")
     private boolean isArchived;
 
-    @Schema(description = "메세지 리스트", example = "LIST<MessageResponse>")
+    @Schema(description = "Message list", example = "LIST<MessageResponse>")
     private List<MessageResponse> messages;
 
-    @Schema(description = "생성일시", example = "2025-06-03 00:00:00")
+    @Schema(description = "Created at", example = "2025-06-03 00:00:00")
     private LocalDateTime createdAt;
 
-    @Schema(description = "수정일시", example = "2025-06-03 00:00:00")
+    @Schema(description = "Updated at", example = "2025-06-03 00:00:00")
     private LocalDateTime updatedAt;
 }

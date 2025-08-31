@@ -1,7 +1,7 @@
-// 스크립트는 MONGO_INITDB_DATABASE 환경 변수에 맞추어 실행됩니다.
+// This script is executed according to the MONGO_INITDB_DATABASE environment variable.
 db = db.getSiblingDB('prototype');
 
-// 1: 메시지 컬렉션 생성 시 JSON Schema Validator 설정
+// 1: Set JSON Schema Validator when creating the messages collection
 db.createCollection('messages', {
     validator: {
         $jsonSchema: {
@@ -14,30 +14,30 @@ db.createCollection('messages', {
                 },
                 sender: {
                     enum: ['USER', 'BOT'],
-                    description: '메시지 발신자 구분'
+                    description: 'Distinguishes the message sender'
                 },
                 content: {
                     bsonType: ['string', 'object'],
-                    description: '텍스트 또는 JSON payload'
+                    description: 'Text or JSON payload'
                 },
                 contentType: {
                     bsonType: 'string',
-                    description: 'text, image, quick_reply 등'
+                    description: 'e.g., text, image, quick_reply'
                 },
                 sequence: {
                     bsonType: 'long',
-                    description: '메시지 순서'
+                    description: 'Message order'
                 },
                 createdAt: {
                     bsonType: 'date',
-                    description: '생성 시각'
+                    description: 'Creation time'
                 }
             }
         }
     }
 });
 
-// 2: 인덱스 생성 (chatId + sequence 순 정렬용)
+// 2: Create index (for sorting by chatId + sequence)
 db.messages.createIndex(
     { chatId: 1, sequence: 1 },
     { name: 'conv_seq_idx' }

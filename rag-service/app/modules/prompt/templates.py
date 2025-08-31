@@ -42,7 +42,7 @@ class MedicalDeviceCyberSecurityTemplate(BaseTemplate):
         Answer questions based only on the given context, which include principles and practical information related to medical device cybersecurity. Please also include the name and page number of the source document from the given context. You must explain users' questions in detail, using examples, based on information obtained from reference materials. 
         
         # STYLE #
-        All responses must be provided in Korean.
+        All responses must be provided in English.
         
         # TONE #        
         Respond in a professional manner that inspires trust while remaining courteous.

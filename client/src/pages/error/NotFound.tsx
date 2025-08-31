@@ -9,12 +9,12 @@ export default function NotFound() {
       <div className="text-center max-w-md">
         <h1 className="text-6xl font-bold text-accent-light dark:text-accent-dark mb-4">404</h1>
         <p className="text-lg text-text-light dark:text-text-dark mb-6">
-          페이지를 찾을 수 없습니다.
+          Page not found.
         </p>
         <button
           onClick={goMain}
           className="px-6 py-2 bg-primary-light dark:bg-primary-dark text-background-light dark:text-background-dark rounded-md hover:bg-primary-dark dark:hover:bg-primary-light transition-colors duration-300">
-          메인으로 돌아가기
+          Go to Main
         </button>
       </div>
     </section>

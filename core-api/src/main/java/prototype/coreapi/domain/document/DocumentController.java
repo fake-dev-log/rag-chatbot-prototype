@@ -12,33 +12,52 @@ import prototype.coreapi.domain.document.dto.DocumentResponse;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+/**
+ * REST controller for managing documents within the RAG system.
+ * Provides endpoints for retrieving, uploading, and deleting documents.
+ * Access to these endpoints is restricted to users with the 'ADMIN' role.
+ */
 @RestController
 @RequestMapping("/documents")
 @RequiredArgsConstructor
-@Tag(name = "문서 관리", description = "RAG 문서 관리 API")
+@Tag(name = "Document Management", description = "RAG Document Management API")
 @PreAuthorize("hasRole('ADMIN')")
 public class DocumentController {
 
     private final DocumentService documentService;
 
+    /**
+     * Retrieves a list of all documents currently managed by the system.
+     * @return A Flux of DocumentResponse containing details of each document.
+     */
     @GetMapping
-    @Operation(summary = "문서 목록 조회", description = "RAG에 사용되는 모든 문서를 조회합니다.")
-    public Flux<DocumentResponse> getDocuments() {
+    @Operation(summary = "Retrieve document list", description = "Retrieves all documents used in RAG.")
+    public Flux<DocumentResponse> getDocuments() { 
         return documentService.findAll();
     }
 
+    /**
+     * Uploads a new document to the system. The document will be stored and then indexed.
+     * @param filePartMono A Mono emitting the uploaded file.
+     * @return A Mono emitting the DocumentResponse for the uploaded document.
+     */
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
-    @Operation(summary = "문서 업로드", description = "새로운 문서를 업로드하고 인덱싱을 요청합니다.")
+    @Operation(summary = "Upload Document", description = "Uploads a new document and requests indexing.")
     public Mono<DocumentResponse> uploadDocument(
             @RequestPart("file") Mono<FilePart> filePartMono
-    ) {
+    ) { 
         return filePartMono.flatMap(documentService::upload);
     }
 
+    /**
+     * Deletes a document from the system by its ID. This also triggers de-indexing.
+     * @param documentId The ID of the document to delete.
+     * @return A Mono<Void> indicating completion of the deletion operation.
+     */
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @Operation(summary = "문서 삭제", description = "기존 문서를 삭제하고 인덱스에서 제거를 요청합니다.")
+    @Operation(summary = "Delete document", description = "Deletes an existing document and requests its removal from the index.")
     public Mono<Void> deleteDocument(@PathVariable("id") Long documentId) {
         return documentService.deleteById(documentId);
     }

@@ -6,7 +6,7 @@ import lombok.RequiredArgsConstructor;
 
 @Getter
 @RequiredArgsConstructor
-@Schema(description = "Redis 검색 키 접두어")
+@Schema(description = "Redis search key prefix")
 public enum RedisKeyPrefix {
 
     REFRESH_TOKEN("RT"),

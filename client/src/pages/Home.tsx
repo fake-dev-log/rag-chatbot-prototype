@@ -48,7 +48,7 @@ export default function Home() {
             focus:outline-none focus:ring-2 focus:ring-primary-light dark:focus:ring-primary-dark
             disabled:opacity-50 transition-colors duration-300
           "
-          placeholder="무엇이 궁금하신가요?"
+          placeholder="What are you curious about?"
           value={query}
           onChange={e => setQuery(e.target.value)}
           disabled={createChat.isPending}
@@ -64,7 +64,7 @@ export default function Home() {
             disabled:opacity-50 transition-colors duration-300
           "
         >
-          {createChat.isPending ? <Spinner /> : '대화 시작'}
+          {createChat.isPending ? <Spinner /> : 'Start Conversation'}
         </button>
       </form>
     </div>

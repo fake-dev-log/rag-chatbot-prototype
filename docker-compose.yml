@@ -109,7 +109,7 @@ services:
     expose:
       - "8000"
     environment:
-      # 필요하다면 API 키, 모델명, 환경 변수 등
+      # API keys, model names, environment variables, etc. if needed
       # LLM_API_BASE: "http://llm-server:11434"
       LLM_API_BASE: "http://host.docker.internal:11434"
       TOKENIZERS_PARALLELISM: false

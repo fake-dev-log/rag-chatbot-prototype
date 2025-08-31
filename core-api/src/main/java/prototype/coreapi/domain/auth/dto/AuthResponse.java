@@ -9,21 +9,21 @@ import java.time.LocalDateTime;
 
 @Getter
 @Builder
-@Schema(description = "로그인 응답")
+@Schema(description = "Sign-in response")
 public class AuthResponse {
 
-    @Schema(description = "JWT 액세스 토큰", example = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c")
+    @Schema(description = "JWT access token", example = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c")
     private String accessToken;
 
-    @Schema(description = "회원 PK", example = "1")
+    @Schema(description = "Member PK", example = "1")
     private Long id;
 
     @Schema(description = "email", example = "test@example.com")
     private String email;
 
-    @Schema(description = "유저 역할", example = "USER")
+    @Schema(description = "User role", example = "USER")
     private Role role;
 
-    @Schema(description = "최근 로그인 시각", example = "2024-02-01T12:00:00")
-    private LocalDateTime lastLoginAt;
+    @Schema(description = "Last sign-in time", example = "2024-02-01T12:00:00")
+    private LocalDateTime lastSignInAt;
 }

@@ -1,6 +1,6 @@
 package prototype.coreapi.global.util;
 
-import prototype.coreapi.domain.auth.dto.LoginPrincipal;
+import prototype.coreapi.domain.auth.dto.SignInPrincipal;
 import prototype.coreapi.global.enums.Role;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -30,7 +30,7 @@ public class SecurityContextUtil {
     }
 
     public static Long getLoginUserId() {
-        LoginPrincipal principal = (LoginPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        SignInPrincipal principal = (SignInPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         return principal.memberId();
     }
 }

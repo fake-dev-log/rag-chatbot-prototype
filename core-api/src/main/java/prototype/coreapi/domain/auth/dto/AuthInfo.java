@@ -12,6 +12,6 @@ public record AuthInfo(
         Long id,
         String email,
         Role role,
-        LocalDateTime lastLoginAt
+        LocalDateTime lastSignInAt
 ) {
 }

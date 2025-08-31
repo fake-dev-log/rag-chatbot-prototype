@@ -16,8 +16,8 @@ spring:
 jwt:
   secret: "dGVzdC1zZWNyZXQtZm9yLXByb3RvdHlwZS1KV1Qtc2VjcmV0LWtleQo="
   issuer: "prototype-test"
-  access-expiration: 7200000 # 2시간
-  refresh-expiration: 604800000 # 7일
+  access-expiration: 7200000 # 2 hours
+  refresh-expiration: 604800000 # 7 days
 
 logging:
   config: classpath:log4j2.xml

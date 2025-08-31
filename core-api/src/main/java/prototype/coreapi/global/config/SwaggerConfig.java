@@ -18,7 +18,7 @@ import org.springframework.context.annotation.Profile;
 @OpenAPIDefinition(
         info = @Info(
                 title = "CORE API",
-                description = "RAG 챗봇 프로토타입 프로젝트 API 명세서",
+                description = "RAG Chatbot Prototype Project API Specification",
                 version = "v1.0"
         )
 )

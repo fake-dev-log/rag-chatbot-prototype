@@ -26,7 +26,7 @@ export default function SignIn() {
         >
           <input
             type="email"
-            placeholder="이메일"
+            placeholder="Email"
             {...register('email', {
               required: true,
               pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
@@ -43,7 +43,7 @@ export default function SignIn() {
 
           <input
             type="password"
-            placeholder="비밀번호"
+            placeholder="Password"
             {...register('password', { required: true })}
             className="
               w-full px-4 py-4 rounded-lg border
@@ -64,7 +64,7 @@ export default function SignIn() {
               disabled:opacity-50 transition-colors duration-300
             "
           >
-            {isPending ? '로그인 중…' : '로그인'}
+            {isPending ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
       </div>

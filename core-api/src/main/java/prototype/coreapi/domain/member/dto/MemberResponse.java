@@ -10,27 +10,27 @@ import java.time.LocalDateTime;
 
 @Getter
 @Setter
-@Schema(description = "회원 정보 응답")
+@Schema(description = "Member information response")
 public class MemberResponse {
 
     @Schema(description = "PK", example = "1")
     private Long id;
 
-    @Schema(description = "이메일", example = "test@example.com")
+    @Schema(description = "Email", example = "test@example.com")
     private String email;
 
-    @Schema(description = "회원 역할 타입", example = "USER")
+    @Schema(description = "Member role type", example = "USER")
     private Role role;
 
-    @Schema(description = "회원 상태 타입", example = "ACTIVE")
+    @Schema(description = "Member status type", example = "ACTIVE")
     private Status status;
 
-    @Schema(description = "마지막 로그인 일시", example = "2024-01-01T10:00:00")
-    private LocalDateTime lastLoginAt;
+    @Schema(description = "Last sign-in time", example = "2024-01-01T10:00:00")
+    private LocalDateTime lastSignInAt;
 
-    @Schema(description = "생성일시", example = "2024-01-01T10:00:00")
+    @Schema(description = "Created at", example = "2024-01-01T10:00:00")
     private LocalDateTime createdAt;
 
-    @Schema(description = "수정일시", example = "2024-01-01T10:00:00")
+    @Schema(description = "Updated at", example = "2024-01-01T10:00:00")
     private LocalDateTime updatedAt;
 }

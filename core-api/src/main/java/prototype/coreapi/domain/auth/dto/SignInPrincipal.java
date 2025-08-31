@@ -1,6 +1,6 @@
 package prototype.coreapi.domain.auth.dto;
 
-public record LoginPrincipal(
+public record SignInPrincipal(
         Long memberId
 ) {
 }

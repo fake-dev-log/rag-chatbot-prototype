@@ -7,6 +7,7 @@ import uvicorn
 from .extensions.logging_config import LOGGING_CONFIG
 from .chat import router as chat_router
 from .retriever.routes import router as retriever_router
+from .prompt.routes import router as prompt_router
 
 dictConfig(LOGGING_CONFIG)
 
@@ -15,6 +16,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI()
 app.include_router(chat_router, tags=["Chat"])
 app.include_router(retriever_router, tags=["Retriever"])
+app.include_router(prompt_router, tags=["Prompt"])
 
 
 @app.get("/health")

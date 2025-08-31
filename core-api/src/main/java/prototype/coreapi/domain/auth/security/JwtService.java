@@ -15,6 +15,11 @@ import prototype.coreapi.global.exception.ErrorCode;
 import java.security.Key;
 import java.util.*;
 
+/**
+ * Service for handling JSON Web Token (JWT) operations.
+ * This includes generating, validating, and extracting information from JWTs.
+ * It uses HS256 algorithm for signing and supports both access and refresh tokens.
+ */
 @Service
 public class JwtService {
 
@@ -24,10 +29,10 @@ public class JwtService {
     @Value("${jwt.issuer}")
     private String ISSUER;
 
-    @Value("${jwt.access-expiration}") // 예: 2시간
+    @Value("${jwt.access-expiration}") // e.g., 2 hours
     private long ACCESS_TOKEN_EXPIRATION;
 
-    @Value("${jwt.refresh-expiration}") // 예: 7일
+    @Value("${jwt.refresh-expiration}") // e.g., 7 days
     private long REFRESH_TOKEN_EXPIRATION;
 
     private Key getSigningKey() {
@@ -35,8 +40,16 @@ public class JwtService {
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
-    // ===== 발급 =====
+    // ===== Issue =====
+    /**
+     * Generates an access token for a given member.
+     * The token includes member ID as subject and roles as claims.
+     * @param memberId The ID of the member.
+     * @param authorities The collection of granted authorities (roles) for the member.
+     * @return The generated JWT access token string.
+     */
     public String generateAccessToken(Long memberId, Collection<? extends GrantedAuthority> authorities) {
+        
         Map<String, Object> claims = new HashMap<>();
         List<String> roles = authorities.stream()
                 .map(GrantedAuthority::getAuthority)
@@ -53,6 +66,11 @@ public class JwtService {
                 .compact();
     }
 
+    /**
+     * Generates a refresh token for a given user ID.
+     * @param userId The ID of the user.
+     * @return The generated JWT refresh token string.
+     */
     public String generateRefreshToken(Long userId) {
         return Jwts.builder()
                 .setSubject(userId.toString())
@@ -63,7 +81,12 @@ public class JwtService {
                 .compact();
     }
 
-    // ===== 검증 =====
+    // ===== Verify =====
+    /**
+     * Validates the authenticity and expiration of a JWT.
+     * @param token The JWT string to validate.
+     * @return true if the token is valid and not expired, false otherwise.
+     */
     public boolean isValidToken(String token) {
         try {
             Claims claims = extractAllClaims(token);
@@ -77,7 +100,13 @@ public class JwtService {
         return claims.getExpiration().before(new Date());
     }
 
-    // ===== 정보 추출 =====
+    // ===== Extract Info =====
+    /**
+     * Extracts all claims from a JWT.
+     * @param token The JWT string.
+     * @return The Claims object containing all parsed claims.
+     * @throws BusinessException if the token signature is invalid.
+     */
     public Claims extractAllClaims(String token) {
         try {
             return Jwts.parserBuilder()
@@ -90,11 +119,21 @@ public class JwtService {
         }
     }
 
+    /**
+     * Extracts the member ID (subject) from a JWT.
+     * @param token The JWT string.
+     * @return The member ID as a Long.
+     */
     public Long extractMemberId(String token) {
         String sub = extractAllClaims(token).getSubject();
         return Long.parseLong(sub);
     }
 
+    /**
+     * Extracts the roles (authorities) from a JWT.
+     * @param token The JWT string.
+     * @return A List of role strings.
+     */
     public List<String> extractRoles(String token) {
         Object rolesObject = extractAllClaims(token).get("roles");
         if (rolesObject instanceof List<?> list) {
@@ -103,10 +142,20 @@ public class JwtService {
         return List.of();
     }
 
+    /**
+     * Retrieves the expiration date from a JWT.
+     * @param token The JWT string.
+     * @return The expiration Date of the token.
+     */
     public Date getExpiration(String token) {
         return extractAllClaims(token).getExpiration();
     }
 
+    /**
+     * Calculates the remaining validity time of a JWT in milliseconds.
+     * @param token The JWT string.
+     * @return The remaining validity in milliseconds.
+     */
     public long getRemainingValidity(String token) {
         return getExpiration(token).getTime() - System.currentTimeMillis();
     }

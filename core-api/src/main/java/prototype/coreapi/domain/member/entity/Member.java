@@ -37,15 +37,15 @@ public class Member extends BaseEntity implements UserDetails {
     @Builder.Default
     private Status status = Status.ACTIVE;
 
-    @Column("last_login_at")
-    private LocalDateTime lastLoginAt;
+    @Column("last_sign_in_at")
+    private LocalDateTime lastSignInAt;
 
     public void encodePassword(String rawPassword, PasswordEncoder encoder) {
         this.password = encoder.encode(rawPassword);
     }
 
-    public void updateLastLoginAt() {
-        this.lastLoginAt = LocalDateTime.now();
+    public void updateLastSignInAt() {
+        this.lastSignInAt = LocalDateTime.now();
     }
 
     public void updateRole(Role role) {

@@ -20,88 +20,113 @@ import java.util.UUID;
 
 import reactor.core.scheduler.Schedulers;
 import reactor.util.retry.Retry;
+import org.springframework.beans.factory.annotation.Qualifier;
 import java.time.Duration;
 
+/**
+ * Service responsible for managing the lifecycle of documents.
+ * This includes handling file uploads, database persistence, and coordinating
+ * with the external indexing service.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class DocumentService {
 
     private final DocumentRepository documentRepository;
-    private final WebClient webClient;
+    @Qualifier("indexingWebClient")
+    private final WebClient indexingWebClient;
     private final OneTimeKeyStoreProvider oneTimeKeyStoreProvider;
 
     @Value("${document.storage.path}")
     private String documentStoragePath;
 
-    @Value("${indexing-service.api.baseUrl}")
-    private String indexingServiceBaseUrl;
-
+    /**
+     * Retrieves all document records from the database.
+     *
+     * @return A Flux of DocumentResponse objects.
+     */
     public Flux<DocumentResponse> findAll() {
         return documentRepository.findAll()
                 .map(DocumentResponse::from);
     }
 
+    /**
+     * Handles the upload of a new document.
+     * This method performs a multi-step process:
+     * 1. Saves the file to the local disk.
+     * 2. Creates a corresponding record in the database.
+     * 3. Triggers the indexing service to process the new file.
+     * If step 3 fails, it attempts to roll back steps 1 and 2.
+     *
+     * @param filePartMono A Mono emitting the uploaded file part.
+     * @return A Mono emitting the response DTO for the created document.
+     */
     public Mono<DocumentResponse> upload(FilePart filePart) {
         Path storageDirectory = Paths.get(documentStoragePath);
         String originalFilename = filePart.filename();
         String storedFilename = UUID.randomUUID() + "_" + originalFilename;
         Path destinationFile = storageDirectory.resolve(storedFilename);
 
-        // 1. Save file to disk
+        // Step 1: Save the file to the disk.
         return filePart.transferTo(destinationFile)
-                // 2. 파일 저장이 완료되면 'then'을 통해 다음 작업을 수행합니다.
                 .then(Mono.defer(() -> {
-            // 2. Create and save document entity to DB
-            return Mono.fromCallable(() -> {
-                File file = destinationFile.toFile();
-                String fileType = getFileExtension(originalFilename);
-                return Document.builder()
-                        .name(originalFilename)
-                        .path(destinationFile.toString())
-                        .type(fileType)
-                        .size(file.length())
-                        .build();
-            }).subscribeOn(Schedulers.boundedElastic())
-                    .flatMap(documentRepository::save);
-        }))
+                    // Step 2: Create and save a Document entity to the database.
+                    return Mono.fromCallable(() -> {
+                        File file = destinationFile.toFile();
+                        String fileType = getFileExtension(originalFilename);
+                        return Document.builder()
+                                .name(originalFilename)
+                                .path(destinationFile.toString())
+                                .type(fileType)
+                                .size(file.length())
+                                .build();
+                    }).subscribeOn(Schedulers.boundedElastic())
+                            .flatMap(documentRepository::save);
+                }))
                 .flatMap(savedDocument ->
-                    // 3. Trigger indexing service
+                    // Step 3: Trigger the external indexing service.
                     triggerIndexing(savedDocument.getPath())
-                            .thenReturn(savedDocument) // Return the document after triggering
+                            .thenReturn(savedDocument)
                             .onErrorResume(e -> {
                                 log.error("Indexing failed for {}. Rolling back document save.", savedDocument.getPath(), e);
-                                // Delete physical file
-                                return Mono.fromRunnable(() -> {
+                                // Define the rollback sequence.
+                                Mono<Void> rollbackSequence = Mono.fromRunnable(() -> {
                                     File file = new File(savedDocument.getPath());
-                                    if (file.exists()) {
-                                        if (!file.delete()) {
-                                            log.warn("Failed to delete physical file on rollback: {}", savedDocument.getPath());
-                                        }
+                                    if (file.exists() && !file.delete()) {
+                                        log.warn("Failed to delete physical file on rollback: {}", savedDocument.getPath());
                                     }
-                                }).subscribeOn(Schedulers.boundedElastic())
-                                        .then(documentRepository.delete(savedDocument)) // Delete DB record
-                                        .then(Mono.error(e)); // Then propagate the error
+                                })
+                                .subscribeOn(Schedulers.boundedElastic())
+                                .then(documentRepository.delete(savedDocument));
+
+                                // Execute the rollback and then propagate the original error.
+                                return rollbackSequence.then(Mono.error(e));
                             })
                 )
                 .map(DocumentResponse::from);
     }
 
+    /**
+     * Deletes a document by its ID.
+     * This involves deleting the physical file, triggering de-indexing, and deleting the database record.
+     *
+     * @param documentId The ID of the document to delete.
+     * @return A Mono that completes when the deletion is finished.
+     */
     public Mono<Void> deleteById(Long documentId) {
         return documentRepository.findById(documentId)
                 .switchIfEmpty(Mono.error(new IllegalArgumentException("Document not found")))
                 .flatMap(document ->
-                    // 1. Delete physical file
+                    // Step 1: Delete the physical file from disk.
                     Mono.fromRunnable(() -> {
                         File file = new File(document.getPath());
-                        if (file.exists()) {
-                            if (!file.delete()) {
-                                log.warn("Failed to delete physical file: {}", document.getPath());
-                            }
+                        if (file.exists() && !file.delete()) {
+                            log.warn("Failed to delete physical file: {}", document.getPath());
                         }
                     }).subscribeOn(Schedulers.boundedElastic())
-                            .then(triggerDeindexing(document.getName())) // 2. Trigger de-indexing service
-                            .thenReturn(document) // Pass document to the next step
+                            .then(triggerDeindexing(document.getName())) // Step 2: Trigger the de-indexing service.
+                            .thenReturn(document) // Pass the document object to the next step.
                 )
                 .flatMap(document ->
                     // 3. Delete DB record
@@ -109,14 +134,20 @@ public class DocumentService {
                 );
     }
 
+    /**
+     * Triggers the external indexing service to process a file.
+     * Uses a one-time API key for secure, stateless inter-service communication.
+     * @param filePath The path to the file to be indexed.
+     * @return A Mono<Void> indicating completion of the indexing request.
+     */
     private Mono<Void> triggerIndexing(String filePath) {
         String key = UUID.randomUUID().toString();
         String secret = UUID.randomUUID().toString();
         record IndexingRequest(String file_path) {}
 
         return oneTimeKeyStoreProvider.save(key, secret)
-                .then(webClient.post()
-                        .uri(indexingServiceBaseUrl + "/documents")
+                .then(indexingWebClient.post()
+                        .uri("/documents")
                         .header("X-API-KEY", key)
                         .header("X-API-SECRET", secret)
                         .bodyValue(new IndexingRequest(filePath))
@@ -127,13 +158,19 @@ public class DocumentService {
                 );
     }
 
+    /**
+     * Triggers the external indexing service to remove a file from the index.
+     * Uses a one-time API key for secure, stateless inter-service communication.
+     * @param fileName The name of the file to be de-indexed.
+     * @return A Mono<Void> indicating completion of the de-indexing request.
+     */
     private Mono<Void> triggerDeindexing(String fileName) {
         String key = UUID.randomUUID().toString();
         String secret = UUID.randomUUID().toString();
 
         return oneTimeKeyStoreProvider.save(key, secret)
-                .then(webClient.delete()
-                        .uri(indexingServiceBaseUrl + "/documents/{fileName}", fileName)
+                .then(indexingWebClient.delete()
+                        .uri("/documents/{fileName}", fileName)
                         .header("X-API-KEY", key)
                         .header("X-API-SECRET", secret)
                         .retrieve()
@@ -143,6 +180,11 @@ public class DocumentService {
                 );
     }
 
+    /**
+     * Extracts the file extension from a given filename.
+     * @param filename The full name of the file.
+     * @return The file extension (e.g., "pdf", "txt"), or an empty string if no extension is found.
+     */
     private String getFileExtension(String filename) {
         if (filename == null || filename.lastIndexOf('.') == -1) {
             return "";

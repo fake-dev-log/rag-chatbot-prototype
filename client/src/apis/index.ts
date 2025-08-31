@@ -8,7 +8,7 @@ const api = axios.create({
   withCredentials: true,
 });
 
-const loginFailMessage = "로그인이 만료되었습니다. 다시 로그인해주세요.";
+const signInFailMessage = "Your session has expired. Please sign in again.";
 
 api.interceptors.request.use(
   config => {
@@ -26,7 +26,7 @@ api.interceptors.response.use(
 
     switch (error.response.status) {
       case 400:
-        throw new Error(error.response.data?.message ?? "로그인에 실패했습니다.");
+        throw new Error(error.response.data?.message ?? "Sign-in failed.");
       case 401: {
         if (originalRequest.url.includes("/auth/refresh")) {
           return Promise.reject(error);
@@ -42,19 +42,19 @@ api.interceptors.response.use(
               return api(originalRequest);
             } else {
               const errorData = response.data;
-              await handleExpired(errorData.message || loginFailMessage);
+              await handleExpired(errorData.message || signInFailMessage);
             }
           }
         } catch (e) {
-          const errorMessage = (e as AxiosError).message || loginFailMessage;
+          const errorMessage = (e as AxiosError).message || signInFailMessage;
           await handleExpired(errorMessage);
         }
-        const finalErrorMessage = error.response?.data?.message || loginFailMessage;
+        const finalErrorMessage = error.response?.data?.message || signInFailMessage;
         await handleExpired(finalErrorMessage);
         break;
       }
       case 500:
-        throw new Error(error.response.data.message ?? "서버 에러가 발생했습니다.");
+        throw new Error(error.response.data.message ?? "A server error has occurred.");
       default:
         break;
     }
@@ -63,7 +63,7 @@ api.interceptors.response.use(
   }
 )
 
-function handleExpired(message: string = loginFailMessage) {
+function handleExpired(message: string = signInFailMessage) {
   useAuthStore.getState().signOut();
   useToastStore.getState().addToast(message, 'error'); // Use Zustand store
   window.location.href = "/sign-in";

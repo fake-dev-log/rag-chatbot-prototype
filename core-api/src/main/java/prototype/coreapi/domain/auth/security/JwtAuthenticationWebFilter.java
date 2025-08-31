@@ -1,6 +1,6 @@
 package prototype.coreapi.domain.auth.security;
 
-import prototype.coreapi.domain.auth.dto.LoginPrincipal;
+import prototype.coreapi.domain.auth.dto.SignInPrincipal;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
 import lombok.NonNull;
@@ -22,6 +22,11 @@ import reactor.core.publisher.Mono;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * A WebFilter that intercepts requests to perform JWT-based authentication.
+ * It extracts JWTs from the Authorization header, validates them, and sets up the Spring Security context.
+ * It also handles token blacklisting and whitelisting of authentication endpoints.
+ */
 @Component
 @RequiredArgsConstructor
 public class JwtAuthenticationWebFilter implements WebFilter {
@@ -36,6 +41,16 @@ public class JwtAuthenticationWebFilter implements WebFilter {
     private final TokenBlacklistStoreProvider blacklist;
         private final WebfluxErrorResponseWriter webfluxErrorResponseWriter;
 
+    /**
+     * Filters incoming requests to perform JWT authentication.
+     * Requests to whitelisted paths are allowed without authentication.
+     * For other requests, it extracts, validates, and blacklists JWTs, then sets the security context.
+     * Handles various JWT-related exceptions (expired, invalid).
+     *
+     * @param exchange The current server web exchange.
+     * @param chain The web filter chain.
+     * @return A Mono<Void> indicating completion of the filter operation.
+     */
     @Override
     @NonNull
     public Mono<Void> filter(ServerWebExchange exchange, @NonNull WebFilterChain chain) {
@@ -69,7 +84,7 @@ public class JwtAuthenticationWebFilter implements WebFilter {
                                 .map(SimpleGrantedAuthority::new)
                                 .collect(Collectors.toList());
 
-                        LoginPrincipal principal = new LoginPrincipal(memberId);
+                        SignInPrincipal principal = new SignInPrincipal(memberId);
                         UsernamePasswordAuthenticationToken auth =
                                 new UsernamePasswordAuthenticationToken(principal, null, authorities);
 

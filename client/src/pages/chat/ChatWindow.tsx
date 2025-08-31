@@ -1,4 +1,3 @@
-
 import { type FormEvent, useRef, useEffect, useState } from 'react';
 import { Disclosure, DisclosureButton, DisclosurePanel } from '@headlessui/react';
 import { ChevronUpIcon, ChevronDownIcon } from 'lucide-react';
@@ -24,7 +23,7 @@ export default function ChatWindow({ messages, isPending, onSubmit }: ChatWindow
     setInput('');
   }
 
-  // 자동 스크롤
+  // Auto-scroll
   useEffect(() => {
     if (containerRef.current) {
       containerRef.current.scrollTop = containerRef.current.scrollHeight;
@@ -33,7 +32,7 @@ export default function ChatWindow({ messages, isPending, onSubmit }: ChatWindow
 
   return (
     <div className="flex flex-col h-full w-full gap-1">
-      {/* 메시지 영역 */}
+      {/* Message area */}
         <div
           ref={containerRef}
           className="flex-1 overflow-y-auto p-4 flex flex-col space-y-4"
@@ -106,7 +105,7 @@ export default function ChatWindow({ messages, isPending, onSubmit }: ChatWindow
                   >
                     <div className="flex items-center space-x-2">
                       <Spinner />
-                      <span>답변 작성중…</span>
+                      <span>Generating answer...</span>
                     </div>
                   </div>
                 ) : null}
@@ -154,7 +153,7 @@ export default function ChatWindow({ messages, isPending, onSubmit }: ChatWindow
           })}
         </div>
 
-      {/* 입력 폼 */}
+      {/* Input form */}
       <form
         onSubmit={handleSubmit}
         className="max-w-3xl mx-auto w-full flex p-4 bg-surface-light dark:bg-surface-dark rounded-lg transition-colors duration-300"
@@ -169,7 +168,7 @@ export default function ChatWindow({ messages, isPending, onSubmit }: ChatWindow
           "
           value={input}
           onChange={e => setInput(e.target.value)}
-          placeholder="메시지를 입력하세요..."
+          placeholder="Enter a message..."
         />
         <button
           type="submit"
@@ -181,7 +180,7 @@ export default function ChatWindow({ messages, isPending, onSubmit }: ChatWindow
             disabled:opacity-50 transition-colors duration-300
           "
         >
-          전송
+          Send
         </button>
       </form>
     </div>

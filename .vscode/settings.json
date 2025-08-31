@@ -10,5 +10,6 @@
             "envManager": "ms-python.python:venv",
             "packageManager": "ms-python.python:pip"
         }
-    ]
+    ],
+    "java.compile.nullAnalysis.mode": "automatic"
 }

@@ -10,7 +10,7 @@ import reactor.core.publisher.Mono;
 @RestController
 @RequestMapping("/common")
 @RequiredArgsConstructor
-@Tag(name = "공통", description = "공통 기능 관련 API")
+@Tag(name = "Common", description = "APIs for common functionalities")
 public class CommonController {
 
     @GetMapping("/health")

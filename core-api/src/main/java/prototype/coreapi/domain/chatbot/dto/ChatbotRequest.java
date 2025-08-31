@@ -7,12 +7,12 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 
 @Getter
-@Schema(description = "봇에 대한 질의 요청")
+@Schema(description = "Chatbot query request")
 @AllArgsConstructor
 public class ChatbotRequest {
 
     @NotBlank
-    @Size(max = 1000, message = "질문 길이는 최대 1000자 입니다.")
-    @Schema(description = "질의문", example = "이게 뭐야?")
+    @Size(max = 1000, message = "Question length cannot exceed 1000 characters.")
+    @Schema(description = "Query text", example = "What is this?")
     private String query;
 }

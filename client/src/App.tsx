@@ -11,7 +11,7 @@ const queryClient = new QueryClient({
     },
     mutations: {
       onError: (err: unknown) => {
-        const message = err instanceof Error ? err.message : '알 수 없는 에러'
+        const message = err instanceof Error ? err.message : 'Unknown error'
         // Use the toast system to show error
         useToastStore.getState().addToast(`[Error] ${message}`, 'error');
       },
@@ -19,9 +19,9 @@ const queryClient = new QueryClient({
     },
   },
   queryCache: new QueryCache({
-    // 쿼리에서 에러가 날 때마다 호출됩니다
+    // This will be called by every query error
     onError: (err: unknown) => {
-      const message = err instanceof Error ? err.message : '알 수 없는 에러'
+      const message = err instanceof Error ? err.message : 'Unknown error'
       // Use the toast system to show error
       useToastStore.getState().addToast(`[Error] ${message}`, 'error');
     },

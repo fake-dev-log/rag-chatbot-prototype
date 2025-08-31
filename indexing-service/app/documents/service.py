@@ -14,31 +14,42 @@ logger = logging.getLogger(__name__)
 
 
 class DocumentService:
+    """
+    Handles the business logic for document indexing, including adding, updating,
+    and deleting documents in the vector store. It also coordinates with the
+    RAG service to ensure the retriever is using the most up-to-date index.
+    """
+
     def __init__(self):
-        # --- Service Communication Setup ---
-        # RAG Service URL using Docker's internal network alias
+        """Initializes the service, setting up connections and the data processor."""
+        # The URL for the RAG service, using Docker's internal network alias.
         self.RAG_SERVICE_URL = "http://rag-service:8000"
 
-        # Redis client for one-time API keys
+        # Initialize Redis client for inter-service communication via one-time keys.
         self.REDIS_HOST = os.environ.get("REDIS_HOST", "redis")
         self.REDIS_PORT = int(os.environ.get("REDIS_PORT", 6379))
         self.redis_client = redis.Redis(host=self.REDIS_HOST, port=self.REDIS_PORT, db=0, decode_responses=True)
-        # -------------------------------------
+
+        # The DataProcessor handles the actual document processing and vector store interaction.
         self.data_processor = DataProcessor()
 
     async def trigger_rag_retriever_reload(self):
         """
-        Notifies the RAG service to reload its retriever using a one-time API key.
+        Notifies the RAG service to reload its vector store retriever.
+
+        This is a crucial step after any modification to the vector store (add, update, delete)
+        to ensure the RAG service uses the latest data. It uses a secure, one-time
+        API key mechanism for the request.
         """
-        # As per the reference implementation, generate a one-time key/secret pair
+        # Generate a unique, single-use key/secret pair for this request.
         key = str(uuid.uuid4())
         secret = str(uuid.uuid4())
         try:
-            # Store the key-secret pair in Redis with a short expiration (e.g., 10 seconds)
+            # Store the key in Redis with a short time-to-live (TTL) to prevent reuse.
             self.redis_client.set(key, secret, ex=10)
         except redis.exceptions.ConnectionError as e:
             logger.error(f"Could not connect to Redis to set one-time key: {e}")
-            # Fail fast if we can't contact Redis, as the subsequent request will be denied.
+            # If Redis is down, the request to the RAG service will fail authentication.
             raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Could not connect to Redis.")
 
         reload_url = f"{self.RAG_SERVICE_URL}/retriever/reload"
@@ -47,13 +58,14 @@ class DocumentService:
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.post(reload_url, headers=headers)
-                response.raise_for_status()
+                response.raise_for_status()  # Raise an exception for 4xx or 5xx status codes
                 logger.info("Successfully triggered RAG service retriever reload.")
         except httpx.RequestError as e:
             logger.error(f"Failed to trigger RAG service reload: {e}")
-            # This failure should be handled (e.g., by a retry mechanism or monitoring)
+            # In a production environment, this might trigger a retry mechanism or an alert.
 
     def add_document(self, file_path: str):
+        """Adds a new document to the vector store."""
         filename = os.path.basename(file_path)
         try:
             self.data_processor.add_document(file_path)
@@ -65,6 +77,7 @@ class DocumentService:
             raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=str(e))
 
     def update_document(self, file_path: str):
+        """Updates an existing document in the vector store."""
         try:
             self.data_processor.update_document(file_path)
             return {"file_name": os.path.basename(file_path), "detail": "Document updated successfully."}
@@ -75,6 +88,7 @@ class DocumentService:
             raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=str(e))
 
     def delete_document(self, file_name: str):
+        """Deletes a document and its corresponding vectors from the store."""
         logger.info(f"Deleting document {file_name}")
         try:
             deleted = self.data_processor.delete_document(file_name)

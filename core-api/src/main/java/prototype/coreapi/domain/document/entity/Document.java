@@ -11,11 +11,11 @@ import prototype.coreapi.domain.BaseEntity;
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
 public class Document extends BaseEntity {
 
-    private String name; // 원본 파일명
+    private String name; // Original file name
 
-    private String path; // 저장된 파일의 전체 경로
+    private String path; // Full path of the saved file
 
-    private String type; // 파일 확장자 (e.g., "pdf")
+    private String type; // File extension (e.g., "pdf")
 
-    private long size; // 파일 크기 (bytes)
+    private long size; // File size (bytes)
 }

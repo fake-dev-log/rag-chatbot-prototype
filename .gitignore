@@ -655,4 +655,6 @@ sketch
 
 # Other
 /core-api/HELP.md
+/core-api/bin
 /client/package-lock.json
+/volumes

@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { API_BASE_URL, baseURL } from '../types/common';
 import type { Document } from '../types/document';
 import api from '../index';
-import { useToastStore } from '@stores/toast.ts';
+import { toast } from '@utils/toast.ts';
 
 export function useDocumentList() {
   return useQuery<Document[], Error>({
@@ -20,7 +20,7 @@ export function useUploadDocument() {
 
   return useMutation<Document, Error, File>({
     onMutate: async (file) => {
-      useToastStore.getState().addToast(`Uploading document '${file.name}'...`, 'info');
+      toast.info(`Uploading document '${file.name}'...`);
     },
     mutationFn: async (file) => {
       const formData = new FormData();
@@ -35,7 +35,7 @@ export function useUploadDocument() {
       return response.data as Document;
     },
     onSuccess: (data) => {
-      useToastStore.getState().addToast(`Document '${data.name}' uploaded and indexing completed.`, 'success');
+      toast.success(`Document '${data.name}' uploaded and indexing completed.`);
       return queryClient.invalidateQueries({ queryKey: ['documents', 'list'] });
     },
   });
@@ -46,13 +46,13 @@ export function useDeleteDocument() {
 
   return useMutation<void, Error, number>({
     onMutate: async (documentId) => {
-      useToastStore.getState().addToast(`Deleting document ID '${documentId}'...`, 'info');
+      toast.info(`Deleting document ID '${documentId}'...`);
     },
     mutationFn: async (documentId) => {
       await api.delete(`${baseURL}${API_BASE_URL.documents}/${documentId}`);
     },
     onSuccess: (_, documentId) => {
-      useToastStore.getState().addToast(`Document ID '${documentId}' deleted and de-indexing completed.`, 'success');
+      toast.success(`Document ID '${documentId}' deleted and de-indexing completed.`);
       return queryClient.invalidateQueries({ queryKey: ['documents', 'list'] });
     },
   });

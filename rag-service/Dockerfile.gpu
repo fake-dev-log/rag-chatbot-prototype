@@ -1,23 +1,23 @@
-# NVIDIA CUDA가 포함된 PyTorch 공식 이미지를 기본으로 사용
-# CUDA 버전에 따라 적절한 태그를 선택하세요 (예: 12.1.1)
+# Use the official PyTorch image with NVIDIA CUDA as the base
+# Select the appropriate tag according to the CUDA version (e.g., 12.1.1)
 FROM pytorch/pytorch:2.8.0-cuda12.1-cudnn8-runtime
 
-# 작업 디렉터리 설정
+# Set working directory
 WORKDIR /app
 
-# 시스템 의존성 설치 (필요한 경우)
-# 예: apt-get update && apt-get install -y --no-install-recommends some-lib && rm -rf /var/lib/apt/lists/*
+# Install system dependencies (if necessary)
+# e.g.: apt-get update && apt-get install -y --no-install-recommends some-lib && rm -rf /var/lib/apt/lists/*
 
-# requirements.txt 복사 및 의존성 설치
-# GPU 버전의 torch 및 faiss-gpu가 requirements.txt에 명시되어 있어야 합니다.
-# pip install --no-cache-dir -r requirements.txt 대신,
-# CUDA 버전에 맞는 torch를 명시적으로 설치하는 것이 좋습니다.
-# 예: pip install torch==2.8.0+cu121 faiss-gpu==1.12.0 -f https://download.pytorch.org/whl/torch_stable.html
+# Copy requirements.txt and install dependencies
+# The GPU versions of torch and faiss-gpu must be specified in requirements.txt.
+# Instead of pip install --no-cache-dir -r requirements.txt,
+# it is recommended to explicitly install torch matching the CUDA version.
+# e.g.: pip install torch==2.8.0+cu121 faiss-gpu==1.12.0 -f https://download.pytorch.org/whl/torch_stable.html
 COPY requirements-gpu.txt .
 RUN pip install --no-cache-dir -r requirements-gpu.txt
 
-# 애플리케이션 코드 복사
+# Copy application code
 COPY app app
 
-# 서비스 실행 명령어
+# Service execution command
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

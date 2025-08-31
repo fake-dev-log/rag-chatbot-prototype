@@ -6,7 +6,7 @@ import lombok.RequiredArgsConstructor;
 
 @Getter
 @RequiredArgsConstructor
-@Schema(description = "회원 활성 상태")
+@Schema(description = "Member activation status")
 public enum Status {
 
     ACTIVE,

@@ -15,10 +15,10 @@ import org.mapstruct.ReportingPolicy;
 )
 public interface MemberMapper {
 
-    @Mapping(target = "password", ignore = true) // 암호화 후 주입
+    @Mapping(target = "password", ignore = true) // Injected after encryption
     @Mapping(target = "role", ignore = true)
     @Mapping(target = "status", ignore = true)
-    @Mapping(target = "lastLoginAt", ignore = true)
+    @Mapping(target = "lastSignInAt", ignore = true)
     Member toEntity(MemberRequest request);
 
     MemberResponse toResponse(Member member);

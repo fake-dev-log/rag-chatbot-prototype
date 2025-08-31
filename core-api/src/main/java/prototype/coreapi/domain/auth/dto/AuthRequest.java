@@ -6,15 +6,15 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 
 @Getter
-@Schema(description = "로그인 요청")
+@Schema(description = "Sign-in request")
 public class AuthRequest {
 
-    @NotBlank(message = "이메일은 필수입니다.")
-    @Email(message = "이메일 형식이 올바르지 않습니다.")
+    @NotBlank(message = "Email is required.")
+    @Email(message = "The email format is incorrect.")
     @Schema(description = "email", example = "test@example.com")
     private String email;
 
-    @NotBlank(message = "비밀번호는 필수입니다.")
-    @Schema(description = "비밀번호", example = "password123")
+    @NotBlank(message = "Password is required.")
+    @Schema(description = "Password", example = "password123")
     private String password;
 }

@@ -13,7 +13,7 @@ async function doRefresh() {
       .then(async (res) => {
         if (!res.ok) {
           const errorResponse = await res.json();
-          throw new Error(errorResponse.message || "리프레시 토큰 만료");
+          throw new Error(errorResponse.message || "Refresh token expired");
         }
         const { data } = await res.json();
         useAuthStore.getState().setAuth(data);
@@ -51,7 +51,7 @@ export async function fetchWithAuth(
       res = await fetch(input, { ...init, headers, credentials: "include" });
     } catch (e) {
       // refresh failed → sign out
-      const errorMessage = (e instanceof Error) ? e.message : "로그인이 만료되었습니다. 다시 로그인해주세요.";
+      const errorMessage = (e instanceof Error) ? e.message : "Your session has expired. Please sign in again.";
       store.signOut();
       window.location.href = "/sign-in";
       throw new Error(errorMessage);

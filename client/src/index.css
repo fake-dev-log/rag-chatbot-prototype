@@ -78,7 +78,7 @@ body,
 
 /* --- Markdown Table Styles (Updated for Scoping) --- */
 
-/* .markdown-table 클래스가 있는 요소 내부의 table에만 스타일 적용 */
+/* Apply styles only to tables within elements with the .markdown-table class */
 .markdown-table table {
   border-spacing: 0;
   border-collapse: collapse;

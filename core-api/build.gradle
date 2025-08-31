@@ -18,7 +18,7 @@ configurations {
         extendsFrom annotationProcessor
     }
     configureEach {
-        // logback과의 충돌 방지
+        // Prevent conflict with logback
         exclude group: 'org.springframework.boot', module: 'spring-boot-starter-logging'
     }
 }
@@ -46,7 +46,7 @@ dependencies {
     runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
     runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
 
-    // SpringDoc OpenAPI → WebFlux UI만 남겨도 충분
+    // SpringDoc OpenAPI → WebFlux UI
     implementation 'org.springdoc:springdoc-openapi-starter-webflux-ui:2.8.9'
 
     // Log

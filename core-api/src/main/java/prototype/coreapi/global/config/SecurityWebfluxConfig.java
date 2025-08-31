@@ -19,6 +19,10 @@ import prototype.coreapi.global.response.WebfluxErrorResponseWriter;
 
 import static prototype.coreapi.global.enums.Role.ADMIN;
 
+/**
+ * Configures the security settings for the Spring WebFlux application.
+ * Enables method-level security and defines the security filter chain.
+ */
 @Configuration
 @EnableWebFluxSecurity
 @EnableReactiveMethodSecurity
@@ -29,14 +33,25 @@ public class SecurityWebfluxConfig {
     private final CorsConfig corsConfig;
     private final WebfluxErrorResponseWriter webfluxErrorResponseWriter;
 
+    /**
+     * Configures the security filter chain for the application.
+     * Disables CSRF, sets up stateless session management, configures exception handling,
+     * defines authorization rules for various paths, and adds custom filters for CORS and JWT authentication.
+     * 
+     * @param http The ServerHttpSecurity object to configure security.
+     * @return The configured SecurityWebFilterChain.
+     */
     @Bean
     public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
+        
         http
+                // Disable CSRF protection, as this is a stateless API that uses JWTs for auth.
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
-                // SecurityContext를 저장할 리포지토리 자체를 NoOp으로 설정 → stateless
+
+                // Make the session management stateless. No session will be created or used.
                 .securityContextRepository(NoOpServerSecurityContextRepository.getInstance())
 
-                // 인증/인가 예외 처리: Mono<Void>를 리턴하도록 setComplete() 호출
+                // Configure custom exception handlers for authentication and authorization errors.
                 .exceptionHandling(ex -> ex
                         .accessDeniedHandler((exchange, denied) ->
                                 webfluxErrorResponseWriter.writeError(exchange, ErrorCode.FORBIDDEN)
@@ -46,21 +61,23 @@ public class SecurityWebfluxConfig {
                         )
                 )
 
-                // 경로별 권한 설정
+                // Define authorization rules for specific paths.
                 .authorizeExchange(authz -> authz
                         .pathMatchers("/auth/sign-in", "/auth/sign-up", "/auth/refresh").permitAll()
                         .pathMatchers(HttpMethod.HEAD, "/members/email-exists").permitAll()
                         .pathMatchers("/admin/**").hasRole(ADMIN.name())
                         .pathMatchers(HttpMethod.GET, "/common/health").permitAll()
                         .pathMatchers("/docs/**", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
-                        .anyExchange().authenticated()
+                        .anyExchange().authenticated() // All other requests must be authenticated.
                 )
+
+                // Add the custom CORS filter.
                 .addFilterAt(
                         corsConfig.corsWebFilter(),
                         SecurityWebFiltersOrder.CORS
                 )
 
-                // JWT 인증 WebFilter 등록
+                // Add the custom JWT authentication filter before the standard authentication processing.
                 .addFilterAt(
                         jwtAuthenticationWebFilter,
                         SecurityWebFiltersOrder.AUTHENTICATION
@@ -69,8 +86,15 @@ public class SecurityWebfluxConfig {
         return http.build();
     }
 
+    /**
+     * Provides a BCryptPasswordEncoder bean for hashing passwords.
+     * This is used for securely storing and verifying user passwords.
+     * 
+     * @return A BCryptPasswordEncoder instance.
+     */
     @Bean
     public PasswordEncoder passwordEncoder() {
+        
         return new BCryptPasswordEncoder();
     }
 }

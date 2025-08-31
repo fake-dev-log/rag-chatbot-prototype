@@ -5,7 +5,7 @@ services:
     build:
       context: ./rag-service
       dockerfile: Dockerfile.gpu
-    # 컨테이너에 GPU 접근을 허용하려면 다음을 추가합니다.
+    # To allow the container to access the GPU, add the following.
     deploy:
       resources:
         reservations:
@@ -18,7 +18,7 @@ services:
     build:
       context: ./indexing-service
       dockerfile: Dockerfile.gpu
-    # 컨테이너에 GPU 접근을 허용하려면 다음을 추가합니다.
+    # To allow the container to access the GPU, add the following.
     deploy:
       resources:
         reservations:

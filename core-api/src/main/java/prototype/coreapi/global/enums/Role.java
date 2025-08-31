@@ -6,7 +6,7 @@ import lombok.RequiredArgsConstructor;
 
 @Getter
 @RequiredArgsConstructor
-@Schema(description = "회원 권한")
+@Schema(description = "Member role")
 public enum Role {
     ADMIN,
     MANAGER,

@@ -8,5 +8,5 @@ export interface AuthResponse {
   email: string;
   role: string;
   accessToken: string;
-  lastLoginAt: string;
+  lastSignInAt: string;
 }

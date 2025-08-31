@@ -12,7 +12,7 @@ CREATE TABLE members (
     password            VARCHAR(255) NOT NULL ,
     role                VARCHAR(20)  NOT NULL ,
     status              VARCHAR(20)  NOT NULL ,
-    last_login_at       TIMESTAMP    NULL ,
+    last_sign_in_at       TIMESTAMP    NULL ,
     created_at          TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ,
     updated_at          TIMESTAMP    NULL
 );
@@ -23,12 +23,12 @@ CREATE TRIGGER ON_UPDATE_TRIGGER
     EXECUTE FUNCTION SET_UPDATED_AT_NOW();
 
 COMMENT ON COLUMN members.id IS 'PK';
-COMMENT ON COLUMN members.password IS '비밀번호';
-COMMENT ON COLUMN members.role IS '회원 역할';
-COMMENT ON COLUMN members.status IS '회원 상태';
-COMMENT ON COLUMN members.last_login_at IS '마지막 로그인 일시';
-COMMENT ON COLUMN members.created_at IS '생성시간';
-COMMENT ON COLUMN members.updated_at IS '수정 일시';
+COMMENT ON COLUMN members.password IS 'Password';
+COMMENT ON COLUMN members.role IS 'Member role';
+COMMENT ON COLUMN members.status IS 'Member status';
+COMMENT ON COLUMN members.last_sign_in_at IS 'Last sign-in date and time';
+COMMENT ON COLUMN members.created_at IS 'Creation time';
+COMMENT ON COLUMN members.updated_at IS 'Modification date and time';
 
 CREATE TABLE chats (
      id                  SERIAL PRIMARY KEY,
@@ -48,10 +48,10 @@ CREATE TRIGGER ON_UPDATE_TRIGGER
     EXECUTE FUNCTION SET_UPDATED_AT_NOW();
 
 COMMENT ON COLUMN chats.id IS 'PK';
-COMMENT ON COLUMN chats.member_id IS '대화 상대';
-COMMENT ON COLUMN chats.title IS '대화 제목';
-COMMENT ON COLUMN chats.last_message_preview IS '최근 메시지 미리보기';
-COMMENT ON COLUMN chats.is_archived IS '사용자가 보관(아카이브)했는지 여부';
+COMMENT ON COLUMN chats.member_id IS 'Chat partner';
+COMMENT ON COLUMN chats.title IS 'Chat title';
+COMMENT ON COLUMN chats.last_message_preview IS 'Last message preview';
+COMMENT ON COLUMN chats.is_archived IS 'Whether the user has archived it';
 
 CREATE TABLE documents (
     id                  SERIAL PRIMARY KEY,
@@ -69,9 +69,48 @@ CREATE TRIGGER ON_UPDATE_TRIGGER
     EXECUTE FUNCTION SET_UPDATED_AT_NOW();
 
 COMMENT ON COLUMN documents.id IS 'PK';
-COMMENT ON COLUMN documents.name IS '원본 파일명';
-COMMENT ON COLUMN documents.path IS '저장된 파일의 전체 경로';
-COMMENT ON COLUMN documents.type IS '파일 확장자';
-COMMENT ON COLUMN documents.size IS '파일 크기 (bytes)';
-COMMENT ON COLUMN documents.created_at IS '생성시간';
-COMMENT ON COLUMN documents.updated_at IS '수정 일시';
+COMMENT ON COLUMN documents.name IS 'Original file name';
+COMMENT ON COLUMN documents.path IS 'Full path of the saved file';
+COMMENT ON COLUMN documents.type IS 'File extension';
+COMMENT ON COLUMN documents.size IS 'File size (bytes)';
+COMMENT ON COLUMN documents.created_at IS 'Creation time';
+COMMENT ON COLUMN documents.updated_at IS 'Modification date and time';
+
+CREATE TABLE prompt_templates (
+    id                  SERIAL PRIMARY KEY,
+    name                VARCHAR(255) NOT NULL UNIQUE,
+    template_content    TEXT NOT NULL,
+    created_at          TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at          TIMESTAMP    NULL
+);
+
+CREATE TRIGGER ON_UPDATE_TRIGGER
+    BEFORE UPDATE ON prompt_templates
+    FOR EACH ROW
+    EXECUTE FUNCTION SET_UPDATED_AT_NOW();
+
+COMMENT ON COLUMN prompt_templates.id IS 'PK';
+COMMENT ON COLUMN prompt_templates.name IS 'The unique name of the prompt template';
+COMMENT ON COLUMN prompt_templates.template_content IS 'The content of the prompt template';
+COMMENT ON COLUMN prompt_templates.created_at IS 'Creation time';
+COMMENT ON COLUMN prompt_templates.updated_at IS 'Modification date and time';
+
+INSERT INTO prompt_templates (name, template_content)
+VALUES (
+    'default', 
+    '# CONTEXT #
+    
+    # OBJECTIVE #
+    
+    # STYLE #
+    
+    # TONE #
+    
+    # AUDIENCE #
+    
+    # RESPONSE #
+    
+    Context: {context}
+    
+    Question: {question}'
+);

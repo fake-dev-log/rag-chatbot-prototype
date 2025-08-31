@@ -8,12 +8,12 @@ import java.util.List;
 
 @Getter
 @Builder
-@Schema(description = "챗봇 질의에 대한 응답")
+@Schema(description = "Response to chatbot query")
 public class ChatbotResponse {
 
-    @Schema(description = "답변", example = "나도 몰라.")
+    @Schema(description = "Answer", example = "I don't know either.")
     private String answer;
 
-    @Schema(description = "출처 목록", example = "LIST<SourceDocument>")
+    @Schema(description = "List of sources", example = "LIST<SourceDocument>")
     List<SourceDocumentProjection> sources;
 }

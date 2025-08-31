@@ -32,6 +32,7 @@
       "@pages/*": ["./src/pages/*"],
       "@routes/*": ["./src/routes/*"],
       "@stores/*": ["./src/stores/*"],
+      "@utils/*": ["./src/utils/*"]
     }
   },
   "include": ["src"]

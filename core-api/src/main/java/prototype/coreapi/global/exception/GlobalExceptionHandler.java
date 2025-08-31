@@ -29,7 +29,7 @@ public class GlobalExceptionHandler {
         String msg = e.getFieldErrors().stream()
                 .map(fe -> fe.getField()
                         + ": " + fe.getDefaultMessage()
-                        + " 입력된 값: [" + fe.getRejectedValue() + "]")
+                        + " entered value: [" + fe.getRejectedValue() + "]")
                 .collect(Collectors.joining(", "));
         return Mono.just(
                 RestResponse.customError(ErrorCode.PARAMETER_VALIDATION_ERROR, msg)

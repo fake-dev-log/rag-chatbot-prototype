@@ -10,21 +10,21 @@ import prototype.coreapi.global.enums.Status;
 
 @Getter
 @Setter
-@Schema(description = "사용자 생성/수정 요청")
+@Schema(description = "User create/update request")
 public class MemberRequest {
 
-    @NotBlank(message = "이메일은 필수입니다.")
-    @Email(message = "이메일 형식이 올바르지 않습니다.")
-    @Schema(description = "이메일", example = "test@example.com")
+    @NotBlank(message = "Email is required.")
+    @Email(message = "The email format is incorrect.")
+    @Schema(description = "Email", example = "test@example.com")
     private String email;
 
-    @NotBlank(message = "비밀번호는 필수입니다.")
-    @Schema(description = "비밀번호", example = "P@ssw0rd!")
+    @NotBlank(message = "Password is required.")
+    @Schema(description = "Password", example = "P@ssw0rd!")
     private String password;
 
-    @Schema(description = "회원 역할", example = "USER")
+    @Schema(description = "Member role", example = "USER")
     private Role role;
 
-    @Schema(description = "회원 상태", example = "ACTIVE")
+    @Schema(description = "Member status", example = "ACTIVE")
     private Status status;
 }

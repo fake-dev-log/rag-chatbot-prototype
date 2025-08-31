@@ -11,30 +11,30 @@ import java.util.List;
 
 @Getter
 @Builder
-@Schema(description = "메세지 응답")
+@Schema(description = "Message response")
 public class MessageResponse {
 
-    @Schema(description = "메시지 PK", example = "qwef1qewr12df4")
+    @Schema(description = "Message PK", example = "qwef1qewr12df4")
     private String id;
 
-    @Schema(description = "챗 PK", example = "1")
+    @Schema(description = "Chat PK", example = "1")
     private Long chatId;
 
-    @Schema(description = "보낸이", example = "USER or BOT")
+    @Schema(description = "Sender", example = "USER or BOT")
     private Sender sender;
 
-    @Schema(description = "내용", example = "이게 뭐야?")
+    @Schema(description = "Content", example = "What is this?")
     private Object content;
 
-    @Schema(description = "유형", example = "text, image or etc.")
+    @Schema(description = "Type", example = "text, image or etc.")
     private String contentType;
 
-    @Schema(description = "메시지 순서", example = "1")
+    @Schema(description = "Message sequence", example = "1")
     private Long sequence;
 
-    @Schema(description = "출처 목록", example = "LIST<SourceDocument>")
+    @Schema(description = "List of sources", example = "LIST<SourceDocument>")
     List<SourceDocument> sources;
 
-    @Schema(description = "작성일시", example = "2025-01-01 00:00:00")
+    @Schema(description = "Created at", example = "2025-01-01 00:00:00")
     private Instant createdAt;
 }

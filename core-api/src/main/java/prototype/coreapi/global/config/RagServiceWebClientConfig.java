@@ -1,4 +1,4 @@
-package prototype.coreapi.domain.chatbot.config;
+package prototype.coreapi.global.config;
 
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -8,13 +8,13 @@ import org.springframework.http.MediaType;
 import org.springframework.web.reactive.function.client.WebClient;
 
 @Configuration
-@EnableConfigurationProperties(ChatbotProperties.class)
-public class ChatbotConfig {
+@EnableConfigurationProperties(RagServiceWebClientProperties.class)
+public class RagServiceWebClientConfig {
 
     @Bean
     public WebClient chatbotWebClient(WebClient.Builder builder,
-                                      ChatbotProperties props) {
-        // 필요하면 로깅ㆍ모니터링 필터 추가
+                                      RagServiceWebClientProperties props) {
+        // Add logging/monitoring filters if necessary
         return builder
                 .baseUrl(props.getBaseUrl())
                 .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
