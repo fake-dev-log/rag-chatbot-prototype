@@ -1,5 +1,7 @@
 # RAG (Retrieval-Augmented Generation) Chatbot Prototype
 
+![DEMO](.github/assets/chatting_demo.gif)
+
 _Read this in other languages: [Korean](README.ko.md)_
 
 ## Table of Contents
@@ -9,6 +11,7 @@ _Read this in other languages: [Korean](README.ko.md)_
 4. [Tech Stack](#4-tech-stack)
 5. [Directory Structure](#5-directory-structure)
 6. [Running Locally](#6-running-locally)
+7. [Usage Guide](#7-usage-guide)
 
 ## 1. Project Overview
 
@@ -22,29 +25,38 @@ All services run independently, and the Client accesses backend functionalities 
 
 ```mermaid
 graph TD
-    subgraph User Interface
+    subgraph "User Interface"
         A[Client: React/Vite]
     end
 
-    subgraph Backend Services
+    subgraph "Backend Services"
         B[Core API: Spring Boot/WebFlux]
         C[RAG Service: FastAPI/LangChain]
         D[Indexing Service: FastAPI]
     end
 
-    subgraph AI & Data
-        E[Local LLM: Ollama]
-        F[Vector Store: FAISS]
-        G[Database: PostgreSQL/MongoDB]
+    subgraph "Data & AI Stores"
+        E[Redis<br><i>Cache / Task Broker</i>]
+        F[Local LLM: Ollama]
+        G[Vector Store: FAISS]
+        H[Database: PostgreSQL/MongoDB]
     end
 
-    A -- HTTP API --> B
-    B -- Internal API Call --> C
-    B -- Triggers Indexing --> D
-    B -- Manages --> G
-    C -- Retrieves data --> F
-    C -- Generates response --> E
-    D -- Creates/Updates --> F
+%% Main application flow
+    A -- "HTTP API" --> B
+    B -- "Internal API Call" --> C
+    B -- "Triggers Indexing" --> D
+
+%% Data store interactions
+    B -- "Manages" --> H
+    C -- "Retrieves data from" --> G
+    D -- "Creates/Updates" --> G
+    C -- "Generates response with" --> F
+
+%% Redis-specific interactions
+    B -- "Caches Sessions & Publishes Task Token" --> E
+    C -- "Consumes Task Token" --> E
+    D -- "Consumes Task Token" --> E
 ```
 
 - **Client**: A web application where users interact with the chatbot and administrators manage documents. All requests are routed through the Core API.
@@ -62,8 +74,6 @@ graph TD
     - **Role-Based Access Control**: Accessible only to users with the ADMIN role.
     - **Document Management**: Allows uploading and deleting documents used for RAG.
     - **Prompt Management**: Allows administrators to create, update, and delete prompt templates used by the RAG Service.
-    - **Real-time Feedback**: Enhances user experience with toast messages indicating the start and completion of document operations.
-- **Responsive UI**: Implemented a dynamic sidebar navigation for user convenience.
 
 ## 4. Tech Stack
 
@@ -208,3 +218,51 @@ If you prefer to manage Ollama as a Docker container instead of using a local in
         device: ${VOLUME_ROOT}/ollama/data
     ...
   ```
+
+## 7. Usage Guide
+
+### 7.1. Sign In
+
+![Sign-in Page](.github/assets/sign-in.png)
+
+### 7.2. Main Page
+
+- On the main screen, you can start a conversation immediately or review past conversations via 'Chat History'. However, the LLM does not retain the context of past conversations, so you cannot continue a previous dialogue.
+- The screenshot below shows the view for an administrator, which includes the 'Documents' and 'Prompts' menus. These menus are not accessible to regular users.
+![Home](./.github/assets/home.png)
+
+### 7.3. Document Management
+
+- Admins can upload or delete documents to be used for RAG.
+    ![Documents](./.github/assets/documents_page.png)
+
+### 7.4. Prompt Management
+
+- Admins can create new prompts or modify/delete existing ones.
+- By clicking the 'Apply' button, an admin can apply the selected prompt to the chatbot. This setting affects all users.
+![Prompts](./.github/assets/prompts_page.png)
+
+#### Default Template
+
+- This is the default prompt written in the COSTAR (Context, Objective, Style, Tone, Audience, Response) format. It is used when no other prompt is applied.
+![Default Template](./.github/assets/default_template.png)
+
+#### Example Template
+
+- This prompt is written with content related to medical device security to serve as a usage example.
+![Example Template](./.github/assets/example_template.png)
+
+### 7.5. Response Differences Based on Prompts
+
+#### When 'Medical Device Security' Template is Applied
+
+- This is a response generated with the 'Medical Device Security' template. As shown, it provides a relevant answer based on evidence from the reference documents.
+![Medical Device Security Chat](./.github/assets/medical_device_security_chat.png)
+
+- However, as defined in the prompt (OBJECTIVE: Answer question based only on the given context...), it clearly states that it cannot answer irrelevant questions due to a lack of reference information.
+![No context](./.github/assets/no_context.png)
+
+#### When 'Default' Template is Applied
+
+- In contrast, when the default template is applied, the chatbot responds correctly to the same question.
+![Well Answered](./.github/assets/well_answered.png)

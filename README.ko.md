@@ -1,5 +1,7 @@
 # RAG (Retrieval-Augmented Generation) Chatbot Prototype
 
+![DEMO](.github/assets/chatting_demo.gif)
+
 ## 목차
 1. [프로젝트 개요](#1-프로젝트-개요)
 2. [아키텍처](#2-아키텍처)
@@ -20,29 +22,38 @@
 
 ```mermaid
 graph TD
-    subgraph User Interface
+    subgraph "User Interface"
         A[Client: React/Vite]
     end
 
-    subgraph Backend Services
+    subgraph "Backend Services"
         B[Core API: Spring Boot/WebFlux]
         C[RAG Service: FastAPI/LangChain]
         D[Indexing Service: FastAPI]
     end
 
-    subgraph AI & Data
-        E[Local LLM: Ollama]
-        F[Vector Store: FAISS]
-        G[Database: PostgreSQL/MongoDB]
+    subgraph "Data & AI Stores"
+        E[Redis<br><i>Cache / Task Broker</i>]
+        F[Local LLM: Ollama]
+        G[Vector Store: FAISS]
+        H[Database: PostgreSQL/MongoDB]
     end
 
-    A -- HTTP API --> B
-    B -- Internal API Call --> C
-    B -- Triggers Indexing --> D
-    B -- Manages --> G
-    C -- Retrieves data --> F
-    C -- Generates response --> E
-    D -- Creates/Updates --> F
+%% Main application flow
+    A -- "HTTP API" --> B
+    B -- "Internal API Call" --> C
+    B -- "Triggers Indexing" --> D
+
+%% Data store interactions
+    B -- "Manages" --> H
+    C -- "Retrieves data from" --> G
+    D -- "Creates/Updates" --> G
+    C -- "Generates response with" --> F
+
+%% Redis-specific interactions
+    B -- "Caches Sessions & Publishes Task Token" --> E
+    C -- "Consumes Task Token" --> E
+    D -- "Consumes Task Token" --> E
 ```
 
 - **Client**: 사용자가 챗봇과 상호작용하고, 관리자가 문서를 관리하는 웹 애플리케이션입니다. 모든 요청은 Core API를 통해 전달됩니다.
@@ -60,8 +71,6 @@ graph TD
     - **역할 기반 접근 제어**: ADMIN 역할을 가진 사용자만 접근할 수 있습니다.
     - **문서 관리**: RAG에 사용될 문서를 업로드하고 삭제할 수 있습니다.
     - **프롬프트 관리**: 관리자가 RAG 서비스에서 사용되는 프롬프트 템플릿을 생성, 수정, 삭제할 수 있습니다.
-    - **실시간 피드백**: 문서 업로드 및 삭제 시, 작업 시작과 완료를 알려주는 토스트 메시지를 통해 사용자 경험을 향상시켰습니다.
-- **반응형 UI**: 사용자의 편의를 위해 동적인 사이드바 네비게이션을 구현했습니다.
 
 ## 4. 기술 스택
 
@@ -110,7 +119,7 @@ graph TD
 
 이 프로젝트는 docker-compose를 통해 모든 서비스를 간편하게 실행할 수 있습니다. CPU와 GPU 환경을 선택하여 실행할 수 있습니다.
 
-### 6.1. 사전 준비 사항(공통)
+### 6.1. 공통 준비 사항
 
 1.  **Docker 및 Docker Compose 설치**
     - 시스템에 Docker와 Docker Compose가 설치되어 있어야 합니다.
@@ -147,7 +156,7 @@ graph TD
 #### 6.3.2. 실행 명령어(GPU)
 ⚠️ **GPU 환경 실행 관련 중요 안내**
 
-> 제공된 `docker-compose.gpu.yml`과 `Dockerfile.gpu`는 GPU 환경을 위한 설정 예시이며, **작성자가 직접 GPU 환경에서 테스트를 진행하지는 못했습니다.** 따라서 예상치 못한 문제가 발생하거나, 특정 GPU 모델 또는 드라이버 버전과 호환되지 않을 수 있습니다.
+> 제공된 `docker-compose.gpu.yml`과 `Dockerfile.gpu`는 GPU 환경을 위한 설정 예시이며, **작성자가 직접 GPU 환경에서 테스트를 진행하지 못했습니다.** 따라서 예상치 못한 문제가 발생하거나, 특정 GPU 모델 또는 드라이버 버전과 호환되지 않을 수 있습니다.
 >
 > 만약 GPU 환경에서 실행 중 문제가 발생한다면, GitHub 리포지터리의 **[Issues](https://github.com/fake-dev-log/rag-chatbot-prototype/issues)** 탭에 발생한 문제에 대해 자세히 기록해주시면 감사하겠습니다. (예: 사용한 GPU, 드라이버 버전, 에러 로그 등)
 
@@ -207,3 +216,51 @@ graph TD
         device: ${VOLUME_ROOT}/ollama/data
     ...
   ```
+
+## 7. 사용법
+
+### 7.1. 로그인
+
+![Sign-in Page](.github/assets/sign-in.png)
+
+### 7.2. 메인 페이지
+
+- 메인 화면에서 바로 대화를 시작하거나, 'Chat History'를 통해 이전 대화 기록을 확인할 수 있습니다. 단, LLM이 대화의 맥락을 기억하지는 않으므로 이전 대화에 이어서 질문하는 것은 불가능합니다.
+- 아래 화면은 관리자 계정으로 접근했기 때문에 Documents와 Prompts 메뉴가 보입니다. 일반 사용자의 경우에는 해당 메뉴에 접근할 수 없습니다.
+![Home](./.github/assets/home.png)
+
+### 7.3. 문서 관리
+
+- 관리자는 RAG에 사용할 문서를 업로드하거나 삭제할 수 있습니다.
+![Documents](./.github/assets/documents_page.png)
+
+### 7.4. 프롬프트 관리
+
+- 관리자는 새로운 프롬프트를 작성하거나 수정 또는 삭제할 수 있습니다.
+- 'Apply' 버튼을 눌러 선택한 프롬프트를 챗봇에 적용할 수 있으며, 이 설정은 모든 사용자에게 동일하게 적용됩니다.
+![Prompts](./.github/assets/prompts_page.png)
+
+#### 기본 템플릿
+
+- COSTAR(Context, Objective, Style, Tone, Audience, Response) 형식으로 작성된 기본 프롬프트입니다. 별도의 프롬프트가 적용되지 않은 경우 이 템플릿이 사용됩니다.
+![Default Template](./.github/assets/default_template.png)
+
+#### 예시 템플릿
+
+- 사용 예시를 보여드리기 위해 의료기기 보안과 관련된 내용으로 작성된 프롬프트입니다.
+![Example Template](./.github/assets/example_template.png)
+
+### 7.5. 프롬프트에 따른 답변 차이
+
+#### 의료기기 보안 템플릿 적용시
+
+- '의료기기 보안' 템플릿을 적용했을 때의 답변입니다. 예시처럼 참고 문헌에서 근거를 찾아와 질문에 적절한 답변을 생성합니다.
+![Medical Device Security Chat](./.github/assets/medical_device_security_chat.png)
+
+- 하지만 프롬프트(OBJECTIVE: Answer question based only on the given context...)에 정의된 대로, 관련 없는 질문에는 참고할 정보가 없다고 명확히 답변합니다.
+![No context](./.github/assets/no_context.png)
+
+#### '기본' 템플릿 적용시
+
+- 반면, 기본 템플릿을 적용했을 때는 동일한 질문에 정상적으로 답변하는 것을 볼 수 있습니다.
+![Well Answered](./.github/assets/well_answered.png)
