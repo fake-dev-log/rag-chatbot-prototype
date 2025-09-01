@@ -67,12 +67,13 @@ class DataProcessor:
             vector_store.save_local(self.vector_store_path)
             return vector_store
 
-    def add_document(self, pdf_path: Union[str, PurePath]) -> None:
+    def add_document(self, pdf_path: Union[str, PurePath], document_name: str = None) -> None:
         """
         Processes and adds a single PDF document to the vector store.
 
         Args:
             pdf_path: The path to the PDF file to be added.
+            document_name: The name of the document to be added.
         """
         pdf_path = Path(pdf_path)
         logger.info(f"Processing and adding document: {pdf_path.name}")
@@ -82,7 +83,7 @@ class DataProcessor:
         # Tag each chunk with the source file name. This is crucial for enabling
         # targeted deletion of documents from the vector store later.
         for chunk in chunks:
-            chunk.metadata["file_name"] = pdf_path.name
+            chunk.metadata["file_name"] = document_name if document_name is not None else pdf_path.name
 
         self.vector_store.add_documents(chunks)
         self.vector_store.save_local(self.vector_store_path)
@@ -121,18 +122,19 @@ class DataProcessor:
         logger.info(f"Successfully deleted vectors for {file_name}.")
         return True
 
-    def update_document(self, pdf_path: Union[str, PurePath]) -> None:
+    def update_document(self, pdf_path: Union[str, PurePath], document_name: str = None) -> None:
         """
         Updates a document in the vector store by performing a delete-then-add operation.
 
         Args:
             pdf_path: The path to the new version of the PDF file.
+            document_name: The name of the document to update.
         """
         pdf_path = Path(pdf_path)
-        file_name = pdf_path.name
+        file_name = document_name if document_name is not None else pdf_path.name
         logger.info(f"Updating document: {file_name}")
         # First, delete all existing vectors associated with the document.
         self.delete_document(file_name)
         # Then, add the new version of the document.
         self.add_document(pdf_path)
-        logger.info(f"Successfully updated document: {file_name}")
+        logger.info(f"Successfully updated document: {pdf_path.name}")

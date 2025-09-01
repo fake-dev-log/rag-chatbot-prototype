@@ -32,21 +32,7 @@ async def readiness_check():
         raise HTTPException(status_code=HTTPStatus.SERVICE_UNAVAILABLE, detail="Service is not ready")
 
 
-class ApplyPromptRequest(BaseModel):
-    name: str
-    templateContent: str
 
-
-@router.post('/admin/prompts/apply', dependencies=[Depends(verify_api_key)], status_code=200)
-async def apply_prompt(request: ApplyPromptRequest):
-    """
-    Applies a new prompt template by clearing its cache and reloading the RAG chain.
-    """
-    try:
-        service.apply_prompt(request.name, request.templateContent)
-        return {"message": f"Prompt '{request.name}' applied successfully."}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post(path='', dependencies=[Depends(verify_api_key)])

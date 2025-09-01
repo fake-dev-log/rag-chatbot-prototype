@@ -19,7 +19,7 @@ service = DocumentService()
 )
 async def add_document(request: DocumentRequest):
     try:
-        response = service.add_document(request.file_path)
+        response = service.add_document(request.file_path, request.document_name)
         await service.trigger_rag_retriever_reload()
         return response
     except FileNotFoundError:

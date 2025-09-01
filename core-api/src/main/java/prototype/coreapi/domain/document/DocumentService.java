@@ -1,15 +1,15 @@
 package prototype.coreapi.domain.document;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import prototype.coreapi.domain.document.dto.DocumentResponse;
+import prototype.coreapi.domain.document.dto.IndexingRequest;
 import prototype.coreapi.domain.document.entity.Document;
 import prototype.coreapi.domain.document.repository.DocumentRepository;
-import prototype.coreapi.global.redis.OneTimeKeyStoreProvider;
+import prototype.coreapi.global.config.WebClientFactory;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -20,7 +20,6 @@ import java.util.UUID;
 
 import reactor.core.scheduler.Schedulers;
 import reactor.util.retry.Retry;
-import org.springframework.beans.factory.annotation.Qualifier;
 import java.time.Duration;
 
 /**
@@ -30,13 +29,16 @@ import java.time.Duration;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class DocumentService {
 
     private final DocumentRepository documentRepository;
-    @Qualifier("indexingWebClient")
     private final WebClient indexingWebClient;
-    private final OneTimeKeyStoreProvider oneTimeKeyStoreProvider;
+
+    public DocumentService(DocumentRepository documentRepository,
+                           WebClientFactory webClientFactory) {
+        this.documentRepository = documentRepository;
+        this.indexingWebClient = webClientFactory.getWebClient(WebClientFactory.ServiceType.INDEXING);
+    }
 
     @Value("${document.storage.path}")
     private String documentStoragePath;
@@ -53,13 +55,13 @@ public class DocumentService {
 
     /**
      * Handles the upload of a new document.
-     * This method performs a multi-step process:
+     * This method performs a multistep process:
      * 1. Saves the file to the local disk.
      * 2. Creates a corresponding record in the database.
      * 3. Triggers the indexing service to process the new file.
      * If step 3 fails, it attempts to roll back steps 1 and 2.
      *
-     * @param filePartMono A Mono emitting the uploaded file part.
+     * @param filePart A Mono emitting the uploaded file part.
      * @return A Mono emitting the response DTO for the created document.
      */
     public Mono<DocumentResponse> upload(FilePart filePart) {
@@ -86,7 +88,7 @@ public class DocumentService {
                 }))
                 .flatMap(savedDocument ->
                     // Step 3: Trigger the external indexing service.
-                    triggerIndexing(savedDocument.getPath())
+                    triggerIndexing(savedDocument.getPath(), savedDocument.getName())
                             .thenReturn(savedDocument)
                             .onErrorResume(e -> {
                                 log.error("Indexing failed for {}. Rolling back document save.", savedDocument.getPath(), e);
@@ -136,48 +138,35 @@ public class DocumentService {
 
     /**
      * Triggers the external indexing service to process a file.
-     * Uses a one-time API key for secure, stateless inter-service communication.
      * @param filePath The path to the file to be indexed.
+     * @param originalFilename The original filename for metadata.
      * @return A Mono<Void> indicating completion of the indexing request.
      */
-    private Mono<Void> triggerIndexing(String filePath) {
-        String key = UUID.randomUUID().toString();
-        String secret = UUID.randomUUID().toString();
-        record IndexingRequest(String file_path) {}
-
-        return oneTimeKeyStoreProvider.save(key, secret)
-                .then(indexingWebClient.post()
-                        .uri("/documents")
-                        .header("X-API-KEY", key)
-                        .header("X-API-SECRET", secret)
-                        .bodyValue(new IndexingRequest(filePath))
-                        .retrieve()
-                        .bodyToMono(Void.class)
-                        .retryWhen(Retry.backoff(3, Duration.ofSeconds(2)).maxBackoff(Duration.ofSeconds(10)))
-                        .doOnError(e -> log.error("Failed to trigger indexing service for file: {}", filePath, e))
-                );
+    private Mono<Void> triggerIndexing(String filePath, String originalFilename) {
+        return indexingWebClient.post()
+                .uri("/documents")
+                .bodyValue(new IndexingRequest(
+                        filePath,
+                        originalFilename
+                ))
+                .retrieve()
+                .bodyToMono(Void.class)
+                .retryWhen(Retry.backoff(3, Duration.ofSeconds(2)).maxBackoff(Duration.ofSeconds(10)))
+                .doOnError(e -> log.error("Failed to trigger indexing service for file: {}", filePath, e));
     }
 
     /**
      * Triggers the external indexing service to remove a file from the index.
-     * Uses a one-time API key for secure, stateless inter-service communication.
      * @param fileName The name of the file to be de-indexed.
      * @return A Mono<Void> indicating completion of the de-indexing request.
      */
     private Mono<Void> triggerDeindexing(String fileName) {
-        String key = UUID.randomUUID().toString();
-        String secret = UUID.randomUUID().toString();
-
-        return oneTimeKeyStoreProvider.save(key, secret)
-                .then(indexingWebClient.delete()
+        return indexingWebClient.delete()
                         .uri("/documents/{fileName}", fileName)
-                        .header("X-API-KEY", key)
-                        .header("X-API-SECRET", secret)
                         .retrieve()
                         .bodyToMono(Void.class)
                         .retryWhen(Retry.backoff(3, Duration.ofSeconds(2)).maxBackoff(Duration.ofSeconds(10)))
-                        .doOnError(e -> log.error("Failed to trigger de-indexing service for file: {}", fileName, e))
-                );
+                        .doOnError(e -> log.error("Failed to trigger de-indexing service for file: {}", fileName, e));
     }
 
     /**

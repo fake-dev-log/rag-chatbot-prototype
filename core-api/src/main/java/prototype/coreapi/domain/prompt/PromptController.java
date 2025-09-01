@@ -6,19 +6,11 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.reactive.function.client.WebClientResponseException;
 
-import java.util.UUID;
-
-import org.springframework.beans.factory.annotation.Qualifier;
-import prototype.coreapi.domain.prompt.dto.ApplyPromptRequest;
 import prototype.coreapi.domain.prompt.dto.PromptRequest;
 import prototype.coreapi.domain.prompt.dto.PromptResponse;
-import prototype.coreapi.global.redis.OneTimeKeyStoreProvider;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -31,9 +23,6 @@ import reactor.core.publisher.Mono;
 public class PromptController {
 
     private final PromptService promptService;
-    @Qualifier("chatbotWebClient")
-    private final WebClient chatbotWebClient;
-    private final OneTimeKeyStoreProvider oneTimeKeyStoreProvider;
 
     @GetMapping
     @Operation(summary = "Get all prompt templates")
@@ -75,29 +64,6 @@ public class PromptController {
 
     @PostMapping("/{id}/apply")
     public Mono<String> applyPrompt(@PathVariable Long id) {
-        return promptService.findById(id)
-                .flatMap(prompt -> {
-                    String key = UUID.randomUUID().toString();
-                    String secret = UUID.randomUUID().toString();
-
-                    ApplyPromptRequest requestBody = new ApplyPromptRequest(prompt.getName(), prompt.getTemplateContent());
-
-                    return oneTimeKeyStoreProvider.save(key, secret)
-                            .then(Mono.defer(() ->
-                                chatbotWebClient.post()
-                                    .uri("/chats/admin/prompts/apply")
-                                    .accept(MediaType.APPLICATION_JSON)
-                                    .header("X-API-KEY", key)
-                                    .header("X-API-SECRET", secret)
-                                    .bodyValue(requestBody)
-                                    .retrieve()
-                                    .bodyToMono(String.class)
-                                    .doOnSuccess(response -> log.info("Successfully applied prompt: {}", response))
-                                    .doOnError(WebClientResponseException.class, err -> {
-                                        log.error("Failed to apply prompt. Status: {}, Body: {}",
-                                                err.getStatusCode(), err.getResponseBodyAsString());
-                                    })
-                            ));
-                });
+        return promptService.apply(id);
     }
 }

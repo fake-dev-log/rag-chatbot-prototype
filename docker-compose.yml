@@ -162,6 +162,8 @@ services:
     build:
       context: ./client
       dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL}
     restart: always
     ports:
       - "5173:80" # Expose Nginx port

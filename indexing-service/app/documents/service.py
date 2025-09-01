@@ -64,12 +64,11 @@ class DocumentService:
             logger.error(f"Failed to trigger RAG service reload: {e}")
             # In a production environment, this might trigger a retry mechanism or an alert.
 
-    def add_document(self, file_path: str):
+    def add_document(self, file_path: str, document_name: str):
         """Adds a new document to the vector store."""
-        filename = os.path.basename(file_path)
         try:
             self.data_processor.add_document(file_path)
-            return {"file_name": filename, "detail": "Document added successfully."}
+            return {"file_name": document_name, "detail": "Document added successfully."}
         except FileNotFoundError:
             raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail=f"File not found at path: {file_path}")
         except Exception as e:

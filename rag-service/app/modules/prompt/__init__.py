@@ -1,1 +1,1 @@
-from .templates import *
+from .prompt_loader import *

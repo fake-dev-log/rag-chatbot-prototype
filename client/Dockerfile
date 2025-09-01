@@ -1,7 +1,5 @@
 FROM node:22-alpine AS client-fetch
 
-ARG BUILD_MODE
-
 ENV LANG='C.UTF-8' \
     LC_ALL='C-UTF-8'
 
@@ -12,6 +10,10 @@ WORKDIR /app/
 RUN yarn --frozen-lockfile
 
 FROM client-fetch AS client
+
+ARG VITE_API_BASE_URL
+
+ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
 
 COPY . /app/
 

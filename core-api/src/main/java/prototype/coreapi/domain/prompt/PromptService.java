@@ -1,34 +1,38 @@
 package prototype.coreapi.domain.prompt;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
+import prototype.coreapi.domain.prompt.dto.ApplyPromptRequest;
 import prototype.coreapi.domain.prompt.dto.PromptRequest;
 import prototype.coreapi.domain.prompt.dto.PromptResponse;
 import prototype.coreapi.domain.prompt.entity.PromptTemplate;
 import prototype.coreapi.domain.prompt.mapper.PromptMapper;
 import prototype.coreapi.domain.prompt.repository.PromptTemplateRepository;
-import prototype.coreapi.global.redis.OneTimeKeyStoreProvider;
+import prototype.coreapi.global.config.WebClientFactory;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.retry.Retry;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.MediaType;
 
 import java.time.Duration;
-import java.util.UUID;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class PromptService {
 
     private final PromptTemplateRepository promptRepository;
     private final PromptMapper promptMapper;
-    @Qualifier("chatbotWebClient")
-    private final WebClient chatbotWebClient;
-    private final OneTimeKeyStoreProvider oneTimeKeyStoreProvider;
+    private final WebClient ragWebClient;
+
+    public PromptService(PromptTemplateRepository promptRepository,
+                         PromptMapper promptMapper,
+                         WebClientFactory webClientFactory) {
+        this.promptRepository = promptRepository;
+        this.promptMapper = promptMapper;
+        this.ragWebClient = webClientFactory.getWebClient(WebClientFactory.ServiceType.RAG);
+    }
 
     public Flux<PromptResponse> findAll() {
         return promptRepository.findAll()
@@ -48,7 +52,8 @@ public class PromptService {
     public Mono<PromptResponse> create(PromptRequest request) {
         PromptTemplate promptTemplate = promptMapper.toEntity(request);
         return promptRepository.save(promptTemplate)
-                .doOnSuccess(p -> triggerPromptReload())
+                .flatMap(savedPrompt -> triggerPromptReload()
+                        .thenReturn(savedPrompt))
                 .map(promptMapper::toResponse);
     }
 
@@ -58,34 +63,46 @@ public class PromptService {
                     promptTemplate.update(request.getName(), request.getTemplateContent());
                     return promptRepository.save(promptTemplate);
                 })
-                .doOnSuccess(p -> triggerPromptReload())
+                .flatMap(savedPrompt -> triggerPromptReload()
+                        .thenReturn(savedPrompt))
                 .map(promptMapper::toResponse);
+    }
+
+    public Mono<String> apply(Long id) {
+        return findById(id)
+                .flatMap(prompt -> {
+
+                    ApplyPromptRequest requestBody = ApplyPromptRequest.builder()
+                            .name(prompt.getName())
+                            .templateContent(prompt.getTemplateContent())
+                            .build();
+
+                    return ragWebClient.post()
+                            .uri("/prompts/apply")
+                            .accept(MediaType.APPLICATION_JSON)
+                            .bodyValue(requestBody)
+                            .retrieve()
+                            .bodyToMono(String.class)
+                            .doOnSuccess(response -> log.info("Successfully applied prompt: {}", response))
+                            .doOnError(WebClientResponseException.class, err -> {
+                                log.error("Failed to apply prompt. Status: {}, Body: {}",
+                                        err.getStatusCode(), err.getResponseBodyAsString());
+                            });
+                });
     }
 
     public Mono<Void> deleteById(Long id) {
         return promptRepository.deleteById(id)
-                .doOnSuccess(v -> triggerPromptReload());
+                .then(triggerPromptReload());
     }
 
-    private void triggerPromptReload() {
-        String key = UUID.randomUUID().toString();
-        String secret = UUID.randomUUID().toString();
-
-        Mono<Void> reloadRequestMono = chatbotWebClient.post()
+    private Mono<Void> triggerPromptReload() {
+        return ragWebClient.post()
                 .uri("/prompts/reload")
                 .accept(MediaType.APPLICATION_JSON)
-                .header("X-API-KEY", key)
-                .header("X-API-SECRET", secret)
                 .retrieve()
                 .bodyToMono(Void.class)
                 .retryWhen(Retry.backoff(3, Duration.ofSeconds(2)).maxBackoff(Duration.ofSeconds(10)))
                 .doOnError(e -> log.error("Failed to trigger prompt reload in rag-service", e));
-
-        oneTimeKeyStoreProvider.save(key, secret)
-                .then(reloadRequestMono)
-                .subscribe(
-                        v -> log.info("Successfully triggered prompt reload."),
-                        err -> log.error("Error during prompt reload trigger: {}", err.getMessage())
-                );
     }
 }

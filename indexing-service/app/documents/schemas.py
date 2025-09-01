@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field
 
 class DocumentRequest(BaseModel):
     file_path: str = Field(..., description="The absolute path to the document file within the shared volume.")
+    document_name: str = Field(..., description="The name of the document.")
 
 
 class IndexingResponse(BaseModel):

@@ -6,7 +6,7 @@ logger = logging.getLogger(__name__)
 from app.chat.schemas import SourceDocument
 from app.modules.embedding import hugging_face
 from app.modules.llm import Ollama
-from app.modules.prompt_loader import prompt_loader # Import the prompt loader
+from app.modules.prompt.prompt_loader import prompt_loader # Import the prompt loader
 from app.modules.retriever import Faiss
 
 from langchain_core.output_parsers import StrOutputParser

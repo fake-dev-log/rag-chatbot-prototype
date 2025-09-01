@@ -4,14 +4,16 @@ from fastapi import APIRouter, Depends, Response
 
 from app.chat.service import ChatService
 from app.dependencies import verify_api_key
+from app.chat.routes import service as chat_service_singleton # Import the singleton service
 
 router = APIRouter(prefix='/retriever', dependencies=[Depends(verify_api_key)])
 
 
 def get_chat_service() -> ChatService:
-    # This function can be extended to manage ChatService lifecycle,
-    # e.g., using a global singleton pattern or caching.
-    return ChatService()
+    # This function returns the singleton ChatService instance
+    # to ensure that operations like reloading the retriever
+    # affect the active service used by chat routes.
+    return chat_service_singleton
 
 
 @router.post("/reload", summary="Reload the retriever's vector store index")
