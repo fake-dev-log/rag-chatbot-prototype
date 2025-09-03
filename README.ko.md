@@ -258,6 +258,9 @@ graph TD
 - '의료기기 보안' 템플릿을 적용했을 때의 답변입니다. 예시처럼 참고 문헌에서 근거를 찾아와 질문에 적절한 답변을 생성합니다.
 ![Medical Device Security Chat](./.github/assets/medical_device_security_chat.png)
 
+- Sources 버튼을 통해 실제로 어떤 문서가 검색되어 활용되었는지 확인할 수 있습니다.
+![Source Documents](.github/assets/sources.png)
+
 - 하지만 프롬프트(OBJECTIVE: Answer question based only on the given context...)에 정의된 대로, 관련 없는 질문에는 참고할 정보가 없다고 명확히 답변합니다.
 ![No context](./.github/assets/no_context.png)
 

@@ -17,8 +17,17 @@ export default function MainLayout() {
           <ul>
             {chats?.map(chat => (
               <li key={chat.id} className="mb-2">
-                <Link to={`/chats/${chat.id}`} className="block p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700">
-                  {chat.title}
+                <Link to={`/chats/${chat.id}`}
+                      className="block p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700">
+                  <span className="truncate text-gray-800 dark:text-gray-100">
+                    {chat.title}
+                  </span>
+
+                  <div className="overflow-hidden">
+                    <span className="block whitespace-nowrap text-sm text-gray-600 dark:text-gray-300 animate-marquee">
+                      {chat.lastMessagePreview}
+                    </span>
+                  </div>
                 </Link>
               </li>
             ))}
@@ -26,7 +35,7 @@ export default function MainLayout() {
         </div>
       </div>
       <div className="flex-1 bg-background-light dark:bg-background-dark relative">
-        <button 
+        <button
           onClick={() => setHistoryCollapsed(!historyCollapsed)} 
           className="
             absolute top-1/2 -left-3 transform -translate-y-1/2

@@ -79,11 +79,14 @@ class DataProcessor:
         logger.info(f"Processing and adding document: {pdf_path.name}")
         doc = load_pdf(pdf_path)
         chunks = split_text(doc)
+        document_id, file_name = pdf_path.name.split("_")
 
         # Tag each chunk with the source file name. This is crucial for enabling
         # targeted deletion of documents from the vector store later.
         for chunk in chunks:
-            chunk.metadata["file_name"] = document_name if document_name is not None else pdf_path.name
+            chunk.metadata["document_id"] = document_id
+            chunk.metadata["file_name"] = document_name if document_name == file_name else pdf_path.name
+            chunk.metadata["page_number"] = chunk.metadata["page"] + 1
 
         self.vector_store.add_documents(chunks)
         self.vector_store.save_local(self.vector_store_path)
@@ -106,10 +109,11 @@ class DataProcessor:
             logger.error("Vector store is not initialized.")
             return False
 
+        document_id = file_name.split("_")[0]
         # Find the internal FAISS IDs for all chunks belonging to the specified file.
         ids_to_delete = [
             doc_id for doc_id, doc in self.vector_store.docstore._dict.items()
-            if doc.metadata.get("file_name") == file_name
+            if doc.metadata.get("document_id") == document_id or doc.metadata.get("file_name") == file_name
         ]
 
         if not ids_to_delete:

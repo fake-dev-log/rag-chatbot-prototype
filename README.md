@@ -234,7 +234,7 @@ If you prefer to manage Ollama as a Docker container instead of using a local in
 ### 7.3. Document Management
 
 - Admins can upload or delete documents to be used for RAG.
-    ![Documents](./.github/assets/documents_page.png)
+![Documents](./.github/assets/documents_page.png)
 
 ### 7.4. Prompt Management
 
@@ -258,6 +258,9 @@ If you prefer to manage Ollama as a Docker container instead of using a local in
 
 - This is a response generated with the 'Medical Device Security' template. As shown, it provides a relevant answer based on evidence from the reference documents.
 ![Medical Device Security Chat](./.github/assets/medical_device_security_chat.png)
+
+- Clicking the Sources button shows which documents were searched and used.
+![Source Documents](.github/assets/sources.png)
 
 - However, as defined in the prompt (OBJECTIVE: Answer question based only on the given context...), it clearly states that it cannot answer irrelevant questions due to a lack of reference information.
 ![No context](./.github/assets/no_context.png)
