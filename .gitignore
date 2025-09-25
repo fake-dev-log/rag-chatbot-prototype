@@ -658,3 +658,4 @@ sketch
 /core-api/bin
 /client/package-lock.json
 /volumes
+package-lock.json

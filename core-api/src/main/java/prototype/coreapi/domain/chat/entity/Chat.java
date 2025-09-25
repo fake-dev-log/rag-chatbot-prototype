@@ -18,6 +18,9 @@ public class Chat extends BaseEntity {
     @Column("title")
     private String title;
 
+    @Column("summary")
+    private String summary;
+
     @Column("last_message_preview")
     private String lastMessagePreview;
 
@@ -31,5 +34,9 @@ public class Chat extends BaseEntity {
 
     public void updateTitle(String title) {
         this.title = title;
+    }
+
+    public void updateSummary(String summary) {
+        this.summary = summary;
     }
 }

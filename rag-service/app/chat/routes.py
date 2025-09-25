@@ -1,7 +1,6 @@
 from http import HTTPStatus
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
 from starlette.responses import StreamingResponse, Response
 
 from app.dependencies import verify_api_key
@@ -47,4 +46,4 @@ async def chat(request: ChatRequest):
         A StreamingResponse that sends newline-delimited JSON (NDJSON) objects.
         Each object in the stream represents an event (e.g., a token or source documents).
     """
-    return StreamingResponse(service.stream(request.query), media_type="application/x-ndjson")
+    return StreamingResponse(service.stream(query=request.query, chat_history=request.chat_history), media_type="application/x-ndjson")

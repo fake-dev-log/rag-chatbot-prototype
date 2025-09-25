@@ -3,6 +3,8 @@ package prototype.coreapi.domain.chat;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import prototype.coreapi.domain.chat.dto.ChatProjection;
 import prototype.coreapi.domain.chat.dto.ChatResponse;
@@ -34,6 +36,7 @@ import java.util.List;
  */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ChatService {
 
     private final ChatRepository chatRepository;
@@ -129,47 +132,76 @@ public class ChatService {
      * @return A Flux of ChatChunk representing the streamed response from the chatbot.
      */
     public Flux<ChatChunk> handleUserMessage(Long chatId, String userContent) {
-        
-        return findById(chatId)
-                .flatMapMany(chat -> {
-                    // 1) Save user message → update preview
-                    Mono<Chat> afterUser = messageService.saveUserMessage(chatId, userContent)
-                            .flatMap(savedUser -> updateLastMessagePreview(chat, savedUser))
-                            .thenReturn(chat);
 
-                    return afterUser.flatMapMany(savedChat -> {
-                        List<String> tokenBuffer = new ArrayList<>();
-                        List<SourceDocumentProjection> sourcesBuffer = new ArrayList<>();
+        Mono<Chat> chatMono = findById(chatId).cache(); 
 
-                        Flux<ChatChunk> tokenFlux = chatBotService.inference(userContent)
-                                // Send tokens as they arrive, buffering them
-                                .doOnNext(chunk -> {
-                                    if ("token".equals(chunk.type())) {
-                                        tokenBuffer.add(chunk.data().asText());
-                                    } else if ("sources".equals(chunk.type())) {
-                                        List<SourceDocumentProjection> sources = objectMapper.convertValue(
-                                                chunk.data(),
-                                                new TypeReference<List<SourceDocumentProjection>>() {}
-                                        );
-                                        sourcesBuffer.addAll(sources);
-                                    }
-                                });
+        return chatMono.flatMapMany(chat -> {
+            // 1) Save user message and update preview
+            Mono<Chat> afterUserMessageSaved = messageService.saveUserMessage(chatId, userContent)
+                    .flatMap(savedUser -> updateLastMessagePreview(chat, savedUser))
+                    .thenReturn(chat);
 
-                        // Save Mono executed once at the end of the token stream
-                        Mono<Void> saveBotMono = Mono.defer(() -> {
-                            String full = String.join("", tokenBuffer);
-                            ChatbotResponse resp = ChatbotResponse.builder()
-                                    .answer(full)
-                                    .sources(sourcesBuffer)
-                                    .build();
-                            return messageService.saveBotMessage(chatId, resp)
-                                    .flatMap(saved -> updateLastMessagePreview(savedChat, saved))
-                                    .then();
+            return afterUserMessageSaved.flatMapMany(savedChat -> {
+                List<String> tokenBuffer = new ArrayList<>();
+                List<SourceDocumentProjection> sourcesBuffer = new ArrayList<>();
+
+                // 2) Stream response from chatbot, passing in the conversation summary
+                Flux<ChatChunk> tokenFlux = chatBotService.inference(userContent, savedChat.getSummary())
+                        .doOnNext(chunk -> {
+                            if ("token".equals(chunk.type())) {
+                                tokenBuffer.add(chunk.data().asText());
+                            } else if ("sources".equals(chunk.type())) {
+                                List<SourceDocumentProjection> sources = objectMapper.convertValue(
+                                        chunk.data(),
+                                        new TypeReference<List<SourceDocumentProjection>>() {}
+                                );
+                                sourcesBuffer.addAll(sources);
+                            }
                         });
 
-                        // Execute saveBotMono after the token Flux
-                        return Flux.concat(tokenFlux, saveBotMono.thenMany(Flux.empty()));
-                    });
+                // 3) After streaming is complete, save the bot's full response
+                Mono<Void> saveBotMono = Mono.defer(() -> {
+                    String fullBotAnswer = String.join("", tokenBuffer);
+                    if (fullBotAnswer.isBlank()) {
+                        return Mono.empty();
+                    }
+
+                    ChatbotResponse resp = ChatbotResponse.builder()
+                            .answer(fullBotAnswer)
+                            .sources(sourcesBuffer)
+                            .build();
+
+                    // 4) In parallel, update the conversation summary asynchronously
+                    updateConversationSummaryAsync(chatId, userContent, fullBotAnswer, savedChat.getSummary());
+
+                    return messageService.saveBotMessage(chatId, resp)
+                            .flatMap(saved -> updateLastMessagePreview(savedChat, saved))
+                            .then();
+                });
+
+                return Flux.concat(tokenFlux, saveBotMono.thenMany(Flux.empty()));
+            });
+        });
+    }
+
+    /**
+     * Asynchronously updates the conversation summary.
+     * @param chatId The ID of the chat.
+     * @param question The user's question.
+     * @param answer The bot's answer.
+     * @param previousSummary The previous summary.
+     */
+    @Async
+    public void updateConversationSummaryAsync(Long chatId, String question, String answer, String previousSummary) {
+        chatBotService.summarize(previousSummary, question, answer)
+                .flatMap(response -> findById(chatId)
+                        .flatMap(chat -> {
+                            chat.updateSummary(response.getSummary());
+                            return chatRepository.save(chat);
+                        }))
+                .subscribe(null, error -> {
+                    // Log the error, e.g., using a logger
+                    log.error("Failed to update summary for chat ID: {}", chatId, error);
                 });
     }
 
@@ -181,7 +213,7 @@ public class ChatService {
      * @return A Mono emitting the updated Chat entity.
      */
     public Mono<Chat> updateLastMessagePreview(Chat chat, Message message) {
-        
+
         String preview;
         if ("text".equals(message.getContentType())
                 && !message.getContent().toString().isBlank()) {

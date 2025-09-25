@@ -4,6 +4,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import prototype.coreapi.domain.chatbot.dto.ChatChunk;
 import prototype.coreapi.domain.chatbot.dto.ChatbotRequest;
+import prototype.coreapi.domain.chatbot.dto.SummarizationRequest;
+import prototype.coreapi.domain.chatbot.dto.SummarizationResponse;
 import prototype.coreapi.global.config.WebClientFactory;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -20,9 +22,9 @@ public class ChatbotService {
         this.ragWebClient = webClientFactory.getWebClient(WebClientFactory.ServiceType.RAG);
     }
 
-    public Flux<ChatChunk> inference(String question) {
+    public Flux<ChatChunk> inference(String question, String chatHistory) {
         return performPreflightCheck()
-                .thenMany(performInference(question));
+                .thenMany(performInference(question, chatHistory));
     }
 
     private Mono<Void> performPreflightCheck() {
@@ -38,8 +40,8 @@ public class ChatbotService {
                 .then();
     }
 
-    private Flux<ChatChunk> performInference(String question) {
-        ChatbotRequest reqDto = new ChatbotRequest(question);
+    private Flux<ChatChunk> performInference(String question, String chatHistory) {
+        ChatbotRequest reqDto = new ChatbotRequest(question, chatHistory);
 
         return ragWebClient.post()
                 .uri("/chats")
@@ -48,5 +50,17 @@ public class ChatbotService {
                 .bodyToFlux(ChatChunk.class)
                 .retryWhen(Retry.backoff(3, Duration.ofSeconds(2)).maxBackoff(Duration.ofSeconds(10)))
                 .onErrorMap(throwable -> new RuntimeException("LLM Error", throwable));
+    }
+
+    public Mono<SummarizationResponse> summarize(String previousSummary, String newQuestion, String newAnswer) {
+        SummarizationRequest reqDto = new SummarizationRequest(previousSummary, newQuestion, newAnswer);
+
+        return ragWebClient.post()
+                .uri("/summarize")
+                .bodyValue(reqDto)
+                .retrieve()
+                .bodyToMono(SummarizationResponse.class)
+                .retryWhen(Retry.backoff(3, Duration.ofSeconds(2)).maxBackoff(Duration.ofSeconds(10)))
+                .onErrorMap(throwable -> new RuntimeException("Summarization Error", throwable));
     }
 }

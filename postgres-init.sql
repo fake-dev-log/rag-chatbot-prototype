@@ -36,6 +36,7 @@ CREATE TABLE chats (
          CONSTRAINT fk_chats_member_id
              REFERENCES members,
      title               VARCHAR(255) NULL,
+     summary             TEXT         NULL,
      last_message_preview VARCHAR(500) NULL,
      is_archived          BOOLEAN NOT NULL DEFAULT FALSE,
      created_at          TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ,
@@ -50,6 +51,7 @@ CREATE TRIGGER ON_UPDATE_TRIGGER
 COMMENT ON COLUMN chats.id IS 'PK';
 COMMENT ON COLUMN chats.member_id IS 'Chat partner';
 COMMENT ON COLUMN chats.title IS 'Chat title';
+COMMENT ON COLUMN chats.summary IS 'The summarized content of the conversation';
 COMMENT ON COLUMN chats.last_message_preview IS 'Last message preview';
 COMMENT ON COLUMN chats.is_archived IS 'Whether the user has archived it';
 
@@ -119,11 +121,18 @@ The user is a curious individual who may not be an expert on the topic. Assume t
 # RESPONSE #
 Think step by step before generating the response.
 
+First, review the CHAT HISTORY to understand the conversation so far.
+Then, consider the following Context retrieved from documents.
+Finally, answer the user''s Question based on all the information you have.
+
+CHAT HISTORY:
+{chat_history}
+
 Context: {context}
 
 Question: {question}
 
-REMEMBER: Read the question again to ensure you fully understand the user''s intent.
+REMEMBER: Read the question again to ensure you fully understand the user's intent. If the answer is in the CHAT HISTORY, use it.
 
 Your answer:'
 ), (
@@ -149,11 +158,18 @@ Your audience consists of policymakers and practitioners, including developers, 
 # RESPONSE #
 Think step by step for generating the response.
 
+First, review the CHAT HISTORY to understand the conversation so far.
+Then, consider the following Context retrieved from documents.
+Finally, answer the user''s Question based on all the information you have.
+
+CHAT HISTORY:
+{chat_history}
+
 Context: {context}
 
 Question: {question}
 
-REMEMBER: read again {question}
+REMEMBER: Read the question again to ensure you fully understand the user''s intent. If the answer is in the CHAT HISTORY, use it.
 
 Your answer:'
 );

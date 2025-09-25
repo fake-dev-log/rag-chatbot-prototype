@@ -36,7 +36,8 @@ class ChatService:
         self.chain = (
                 {
                     "context": lambda x: x["context"],
-                    "question": lambda x: x["question"]
+                    "question": lambda x: x["question"],
+                    "chat_history": lambda x: x["chat_history"],
                 }
                 | self.prompt
                 | self.llm
@@ -65,7 +66,8 @@ class ChatService:
         self.chain = (
                 {
                     "context": lambda x: x["context"],
-                    "question": lambda x: x["question"]
+                    "question": lambda x: x["question"],
+                    "chat_history": lambda x: x["chat_history"],
                 }
                 | self.prompt
                 | self.llm
@@ -74,14 +76,15 @@ class ChatService:
         self.ready = True
         logger.info(f"New prompt '{name}' has been applied.")
 
-    def stream(self, query: str):
+    def stream(self, query: str, chat_history: str | None = None):
         """
         Handles a user query by streaming the response from the RAG chain.
         """
         retrieved_docs = self.retriever.invoke(query)
+        chat_history = chat_history or "No conversation history yet."
 
         if not retrieved_docs:
-            chain_input = {"context": None, "question": query}
+            chain_input = {"context": None, "question": query, "chat_history": chat_history}
             for chunk in self.chain.stream(chain_input):
                 yield format_ndjson({"type": "token", "data": chunk})
         else:
@@ -91,11 +94,11 @@ class ChatService:
                     title=str(doc.metadata.get('title', 'N/A')),
                     page_number=doc.metadata.get('page_number', 0),
                     snippet=doc.page_content,
-                ).model_dump()
+                ).model_dump(by_alias=True)
                 for doc in retrieved_docs
             ]
 
-            chain_input = {"context": retrieved_docs, "question": query}
+            chain_input = {"context": retrieved_docs, "question": query, "chat_history": chat_history}
             for chunk in self.chain.stream(chain_input):
                 yield format_ndjson({"type": "token", "data": chunk})
 
