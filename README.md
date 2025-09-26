@@ -60,7 +60,7 @@ graph TD
 ```
 
 - **Client**: A web application where users interact with the chatbot and administrators manage documents. All requests are routed through the Core API.
-- **Core API**: The main application server. It handles core logic such as user authentication (JWT), Role-Based Access Control (RBAC), and document management. It also serves as a gateway, routing client requests to the appropriate internal services. It also orchestrates conversation session management, including saving and managing conversation summaries in the database.
+- **Core API**: The main application server. It handles core logic such as user authentication (JWT), Role-Based Access Control (RBAC), and document management. It also serves as a gateway, routing client requests to the appropriate internal services. It also orchestrates conversation session management, including saving and managing conversation summaries in the database. It employs an in-memory cache (Caffeine) to implement an optimistic caching strategy for conversation summaries, enhancing responsiveness by providing immediate context during asynchronous processing.
 - **RAG Service**:  Manages the core functionalities of the RAG pipeline, including communication with the LLM, vector store retrieval, and prompt generation. In addition to its core RAG functions, it provides a dedicated API for conversation summarization.
 - **Indexing Service**: Receives requests from the Core API to convert source data into vectors and manages the creation of the vector store (FAISS).
 - **Local LLM**: Utilizes an LLM model via a locally installed Ollama instance.
