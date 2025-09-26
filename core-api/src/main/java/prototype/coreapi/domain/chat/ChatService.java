@@ -2,8 +2,9 @@ package prototype.coreapi.domain.chat;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import prototype.coreapi.domain.chat.dto.ChatProjection;
@@ -18,6 +19,7 @@ import prototype.coreapi.domain.member.MemberService;
 import prototype.coreapi.domain.member.entity.Member;
 import prototype.coreapi.domain.message.MessageService;
 import prototype.coreapi.domain.message.document.Message;
+import prototype.coreapi.global.config.CacheConfig;
 import prototype.coreapi.global.exception.BusinessException;
 import prototype.coreapi.global.exception.ErrorCode;
 import reactor.core.publisher.Flux;
@@ -28,14 +30,9 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
-/**
- * Service for managing chat conversations and messages.
- * Handles operations such as finding, creating, and updating chats,
- * as well as processing user messages and interacting with the chatbot service.
- */
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class ChatService {
 
@@ -44,26 +41,24 @@ public class ChatService {
     private final MessageService messageService;
     private final ChatbotService chatBotService;
     private final ObjectMapper objectMapper;
+    private final Cache summaryCache;
 
-    /**
-     * Finds a chat by its ID.
-     * @param id The ID of the chat to find.
-     * @return A Mono emitting the found Chat, or an error if not found.
-     * @throws BusinessException if the chat is not found.
-     */
-    public Mono<Chat> findById(Long id) { 
+    public ChatService(ChatRepository chatRepository, MemberService memberService, MessageService messageService, ChatbotService chatBotService, ObjectMapper objectMapper, CacheManager cacheManager) {
+        this.chatRepository = chatRepository;
+        this.memberService = memberService;
+        this.messageService = messageService;
+        this.chatBotService = chatBotService;
+        this.objectMapper = objectMapper;
+        this.summaryCache = Objects.requireNonNull(cacheManager.getCache(CacheConfig.SUMMARY_CACHE));
+    }
+
+    public Mono<Chat> findById(Long id) {
         return chatRepository.findById(id)
                 .switchIfEmpty(Mono.error(
                         new BusinessException(ErrorCode.NO_SUCH_CONTENT_VALUE, "Chat")
                 ));
     }
 
-    /**
-     * Finds a chat projection by chat ID, including the member's email.
-     * @param chatId The ID of the chat to find.
-     * @return A Mono emitting the ChatProjection, or an error if not found.
-     * @throws BusinessException if the chat is not found.
-     */
     public Mono<ChatProjection> findByIdWithEmail(Long chatId) {
         return chatRepository.findByIdWithEmail(chatId)
                 .switchIfEmpty(Mono.error(
@@ -71,12 +66,7 @@ public class ChatService {
                 ));
     }
 
-    /**
-     * Finds all chat rooms associated with a specific member ID.
-     * @param memberId The ID of the member.
-     * @return A Flux of ChatResponse containing all chat rooms for the member.
-     */
-    public Flux<ChatResponse> findAllByMemberId(Long memberId) { 
+    public Flux<ChatResponse> findAllByMemberId(Long memberId) {
         return chatRepository.findAllByMemberWithEmail(memberId)
                 .map(proj -> ChatResponse.builder()
                         .id(proj.id())
@@ -90,12 +80,6 @@ public class ChatService {
                 );
     }
 
-    /**
-     * Creates a new chat room for a given member.
-     * The chat title is generated based on the current date and a sequential number if multiple chats are created on the same day.
-     * @param memberId The ID of the member for whom to create the chat.
-     * @return A Mono emitting the newly created Chat entity.
-     */
     public Mono<Chat> createChat(Long memberId) {
         LocalDate today = LocalDate.now();
         LocalDateTime startOfDay = today.atStartOfDay();
@@ -123,20 +107,10 @@ public class ChatService {
                 });
     }
 
-    /**
-     * Handles a user's message in a specific chat.
-     * It saves the user's message, updates the chat preview, interacts with the chatbot service,
-     * and then saves the chatbot's response.
-     * @param chatId The ID of the chat room.
-     * @param userContent The content of the user's message.
-     * @return A Flux of ChatChunk representing the streamed response from the chatbot.
-     */
     public Flux<ChatChunk> handleUserMessage(Long chatId, String userContent) {
-
-        Mono<Chat> chatMono = findById(chatId).cache(); 
+        Mono<Chat> chatMono = findById(chatId).cache();
 
         return chatMono.flatMapMany(chat -> {
-            // 1) Save user message and update preview
             Mono<Chat> afterUserMessageSaved = messageService.saveUserMessage(chatId, userContent)
                     .flatMap(savedUser -> updateLastMessagePreview(chat, savedUser))
                     .thenReturn(chat);
@@ -145,8 +119,12 @@ public class ChatService {
                 List<String> tokenBuffer = new ArrayList<>();
                 List<SourceDocumentProjection> sourcesBuffer = new ArrayList<>();
 
-                // 2) Stream response from chatbot, passing in the conversation summary
-                Flux<ChatChunk> tokenFlux = chatBotService.inference(userContent, savedChat.getSummary())
+                // 1. Determine the final summary to be used in lambdas.
+                String summaryFromCache = summaryCache.get(chatId, String.class);
+                final String previousSummary = (summaryFromCache != null) ? summaryFromCache : savedChat.getSummary();
+
+                // 2. Stream response from chatbot, passing in the conversation summary.
+                Flux<ChatChunk> tokenFlux = chatBotService.inference(userContent, previousSummary)
                         .doOnNext(chunk -> {
                             if ("token".equals(chunk.type())) {
                                 tokenBuffer.add(chunk.data().asText());
@@ -159,20 +137,26 @@ public class ChatService {
                             }
                         });
 
-                // 3) After streaming is complete, save the bot's full response
+                // 3. After streaming is complete, perform post-processing.
                 Mono<Void> saveBotMono = Mono.defer(() -> {
                     String fullBotAnswer = String.join("", tokenBuffer);
                     if (fullBotAnswer.isBlank()) {
                         return Mono.empty();
                     }
 
+                    // 4. Optimistic Caching: create and cache a raw summary immediately.
+                    String rawSummary = (previousSummary == null ? "" : previousSummary + "\n\n") +
+                            "User: " + userContent + "\n" +
+                            "AI: " + fullBotAnswer;
+                    summaryCache.put(chatId, rawSummary);
+
+                    // 5. In parallel, start the high-quality summarization and save bot message.
+                    updateConversationSummaryAsync(chatId, userContent, fullBotAnswer, previousSummary);
+
                     ChatbotResponse resp = ChatbotResponse.builder()
                             .answer(fullBotAnswer)
                             .sources(sourcesBuffer)
                             .build();
-
-                    // 4) In parallel, update the conversation summary asynchronously
-                    updateConversationSummaryAsync(chatId, userContent, fullBotAnswer, savedChat.getSummary());
 
                     return messageService.saveBotMessage(chatId, resp)
                             .flatMap(saved -> updateLastMessagePreview(savedChat, saved))
@@ -184,40 +168,29 @@ public class ChatService {
         });
     }
 
-    /**
-     * Asynchronously updates the conversation summary.
-     * @param chatId The ID of the chat.
-     * @param question The user's question.
-     * @param answer The bot's answer.
-     * @param previousSummary The previous summary.
-     */
     @Async
     public void updateConversationSummaryAsync(Long chatId, String question, String answer, String previousSummary) {
         chatBotService.summarize(previousSummary, question, answer)
-                .flatMap(response -> findById(chatId)
-                        .flatMap(chat -> {
-                            chat.updateSummary(response.getSummary());
-                            return chatRepository.save(chat);
-                        }))
-                .subscribe(null, error -> {
-                    // Log the error, e.g., using a logger
-                    log.error("Failed to update summary for chat ID: {}", chatId, error);
-                });
+                .flatMap(response -> {
+                    String newSummary = response.getSummary();
+                    // Update cache with the high-quality summary.
+                    summaryCache.put(chatId, newSummary);
+                    // Persist the new summary to the database.
+                    return findById(chatId)
+                            .flatMap(chat -> {
+                                chat.updateSummary(newSummary);
+                                return chatRepository.save(chat);
+                            });
+                })
+                .subscribe(
+                        null, // On success, do nothing.
+                        error -> log.error("Failed to update summary for chat ID: {}", chatId, error)
+                );
     }
 
-    /**
-     * Updates the last message preview of a chat.
-     * The preview is truncated if it exceeds 100 characters.
-     * @param chat The chat entity to update.
-     * @param message The latest message to use for the preview.
-     * @return A Mono emitting the updated Chat entity.
-     */
     public Mono<Chat> updateLastMessagePreview(Chat chat, Message message) {
-
         String preview;
-        if ("text".equals(message.getContentType())
-                && !message.getContent().toString().isBlank()) {
-
+        if ("text".equals(message.getContentType()) && !message.getContent().toString().isBlank()) {
             preview = message.getContent().toString();
             if (preview.length() > 100) {
                 preview = preview.substring(0, 100) + "...";
