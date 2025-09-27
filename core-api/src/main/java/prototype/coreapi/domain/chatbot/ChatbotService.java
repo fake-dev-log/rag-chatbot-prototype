@@ -2,10 +2,7 @@ package prototype.coreapi.domain.chatbot;
 
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
-import prototype.coreapi.domain.chatbot.dto.ChatChunk;
-import prototype.coreapi.domain.chatbot.dto.ChatbotRequest;
-import prototype.coreapi.domain.chatbot.dto.SummarizationRequest;
-import prototype.coreapi.domain.chatbot.dto.SummarizationResponse;
+import prototype.coreapi.domain.chatbot.dto.*;
 import prototype.coreapi.global.config.WebClientFactory;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -62,5 +59,17 @@ public class ChatbotService {
                 .bodyToMono(SummarizationResponse.class)
                 .retryWhen(Retry.backoff(3, Duration.ofSeconds(2)).maxBackoff(Duration.ofSeconds(10)))
                 .onErrorMap(throwable -> new RuntimeException("Summarization Error", throwable));
+    }
+
+    public Mono<TitleGenerationResponse> generateTitle(String question, String answer) {
+        TitleGenerationRequest reqDto = new TitleGenerationRequest(question, answer);
+
+        return ragWebClient.post()
+                .uri("/generate-title")
+                .bodyValue(reqDto)
+                .retrieve()
+                .bodyToMono(TitleGenerationResponse.class)
+                .retryWhen(Retry.backoff(3, Duration.ofSeconds(2)).maxBackoff(Duration.ofSeconds(10)))
+                .onErrorMap(throwable -> new RuntimeException("Title Generation Error", throwable));
     }
 }

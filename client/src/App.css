@@ -4,3 +4,40 @@
   margin: 0;
   padding: 0;
 }
+
+.hover-scroll-container {
+  position: relative;
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.hover-scroll-text {
+  display: inline-block;
+  /* Animate the transform property */
+  transform: translateX(0);
+  transition: transform 0.3s ease; /* Smooth transition back to original position */
+}
+
+.hover-scroll-container:hover .hover-scroll-text {
+  /* On hover, calculate the distance to scroll */
+  /* This scrolls the text fully to the left */
+  animation: marquee 7s linear;
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0%);
+  }
+  20% {
+    transform: translateX(0%); /* Pause at the start */
+  }
+  80% {
+    /* Scroll until the end of the text is visible */
+    transform: translateX(calc(100% - 100vw));
+  }
+  100% {
+    transform: translateX(calc(100% - 100vw));
+  }
+}

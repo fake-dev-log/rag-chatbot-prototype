@@ -19,12 +19,13 @@ export default function MainLayout() {
               <li key={chat.id} className="mb-2">
                 <Link to={`/chats/${chat.id}`}
                       className="block p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700">
-                  <span className="truncate text-gray-800 dark:text-gray-100">
-                    {chat.title}
-                  </span>
-
-                  <div className="overflow-hidden">
-                    <span className="block whitespace-nowrap text-sm text-gray-600 dark:text-gray-300 animate-marquee">
+                  <div className="hover-scroll-container">
+                    <span className="hover-scroll-text text-gray-800 dark:text-gray-100">
+                      {chat.title}
+                    </span>
+                  </div>
+                  <div className="hover-scroll-container">
+                    <span className="hover-scroll-text text-sm text-gray-600 dark:text-gray-300">
                       {chat.lastMessagePreview}
                     </span>
                   </div>

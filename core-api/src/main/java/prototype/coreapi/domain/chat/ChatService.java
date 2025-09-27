@@ -111,6 +111,9 @@ public class ChatService {
         Mono<Chat> chatMono = findById(chatId).cache();
 
         return chatMono.flatMapMany(chat -> {
+            // Check if this is the first message before the user message is saved and the preview is updated.
+            boolean isFirstMessage = chat.getLastMessagePreview() == null;
+
             Mono<Chat> afterUserMessageSaved = messageService.saveUserMessage(chatId, userContent)
                     .flatMap(savedUser -> updateLastMessagePreview(chat, savedUser))
                     .thenReturn(chat);
@@ -119,11 +122,9 @@ public class ChatService {
                 List<String> tokenBuffer = new ArrayList<>();
                 List<SourceDocumentProjection> sourcesBuffer = new ArrayList<>();
 
-                // 1. Determine the final summary to be used in lambdas.
                 String summaryFromCache = summaryCache.get(chatId, String.class);
                 final String previousSummary = (summaryFromCache != null) ? summaryFromCache : savedChat.getSummary();
 
-                // 2. Stream response from chatbot, passing in the conversation summary.
                 Flux<ChatChunk> tokenFlux = chatBotService.inference(userContent, previousSummary)
                         .doOnNext(chunk -> {
                             if ("token".equals(chunk.type())) {
@@ -137,21 +138,23 @@ public class ChatService {
                             }
                         });
 
-                // 3. After streaming is complete, perform post-processing.
                 Mono<Void> saveBotMono = Mono.defer(() -> {
                     String fullBotAnswer = String.join("", tokenBuffer);
                     if (fullBotAnswer.isBlank()) {
                         return Mono.empty();
                     }
 
-                    // 4. Optimistic Caching: create and cache a raw summary immediately.
                     String rawSummary = (previousSummary == null ? "" : previousSummary + "\n\n") +
                             "User: " + userContent + "\n" +
                             "AI: " + fullBotAnswer;
                     summaryCache.put(chatId, rawSummary);
 
-                    // 5. In parallel, start the high-quality summarization and save bot message.
                     updateConversationSummaryAsync(chatId, userContent, fullBotAnswer, previousSummary);
+
+                    // If it was the first message, trigger title generation.
+                    if (isFirstMessage) {
+                        updateChatTitleAsync(chatId, userContent, fullBotAnswer);
+                    }
 
                     ChatbotResponse resp = ChatbotResponse.builder()
                             .answer(fullBotAnswer)
@@ -173,9 +176,7 @@ public class ChatService {
         chatBotService.summarize(previousSummary, question, answer)
                 .flatMap(response -> {
                     String newSummary = response.getSummary();
-                    // Update cache with the high-quality summary.
                     summaryCache.put(chatId, newSummary);
-                    // Persist the new summary to the database.
                     return findById(chatId)
                             .flatMap(chat -> {
                                 chat.updateSummary(newSummary);
@@ -183,8 +184,22 @@ public class ChatService {
                             });
                 })
                 .subscribe(
-                        null, // On success, do nothing.
+                        null,
                         error -> log.error("Failed to update summary for chat ID: {}", chatId, error)
+                );
+    }
+
+    @Async
+    public void updateChatTitleAsync(Long chatId, String question, String answer) {
+        chatBotService.generateTitle(question, answer)
+                .flatMap(response -> findById(chatId)
+                        .flatMap(chat -> {
+                            chat.updateTitle(response.getTitle());
+                            return chatRepository.save(chat);
+                        }))
+                .subscribe(
+                        null,
+                        error -> log.error("Failed to generate title for chat ID: {}", chatId, error)
                 );
     }
 
