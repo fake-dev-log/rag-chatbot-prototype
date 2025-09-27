@@ -41,7 +41,7 @@ logging:
     io.r2dbc.proxy: DEBUG
     org:
       springframework:
-        web: TRACE
+        web: INFO
 
 springdoc:
   swagger-ui:

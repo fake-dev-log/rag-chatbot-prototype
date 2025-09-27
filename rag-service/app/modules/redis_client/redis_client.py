@@ -12,8 +12,8 @@ class RedisClient:
             decode_responses=True
         )
 
-    def set(self, key, value):
-        self.client.set(key, value)
+    def set(self, key, value, **kwargs):
+        self.client.set(name=key, value=value, **kwargs)
 
     def get(self, key):
         return self.client.get(key)

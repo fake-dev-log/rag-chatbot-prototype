@@ -84,7 +84,7 @@ LOGGING_CONFIG = {
         },
         'uvicorn.asgi': {
             'handlers': ['console', 'file'],
-            'level': 'TRACE',
+            'level': 'INFO',
             'propagate': False
         },
         'app': {

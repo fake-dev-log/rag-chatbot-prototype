@@ -65,6 +65,7 @@ public class SecurityWebfluxConfig {
                 .authorizeExchange(authz -> authz
                         .pathMatchers("/auth/sign-in", "/auth/sign-up", "/auth/refresh").permitAll()
                         .pathMatchers(HttpMethod.HEAD, "/members/email-exists").permitAll()
+                        .pathMatchers("/internal/**").permitAll()
                         .pathMatchers("/admin/**").hasRole(ADMIN.name())
                         .pathMatchers(HttpMethod.GET, "/common/health").permitAll()
                         .pathMatchers("/docs/**", "/swagger-ui/**", "/v3/api-docs/**").permitAll()

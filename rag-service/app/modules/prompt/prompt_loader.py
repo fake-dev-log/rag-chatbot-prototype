@@ -1,8 +1,11 @@
 import logging
 import os
 import httpx
-from cachetools import cached, TTLCache
+import uuid
+from cachetools import TTLCache
 from langchain_core.prompts import PromptTemplate
+
+from app.modules.redis_client import client
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +18,7 @@ class PromptLoader:
         self.core_api_url = os.environ.get("CORE_API_URL", "http://core-api:8080")
         # Cache up to 10 prompts for 1 hour.
         self.cache = TTLCache(maxsize=10, ttl=3600)
+        self.redis_client = client
 
     def _fetch_prompt_from_api(self, name: str) -> str:
         """
@@ -26,9 +30,22 @@ class PromptLoader:
             return self.cache[name]
 
         try:
-            # This is a simplified example. In a real-world scenario, you would need
-            # to handle authentication between services.
-            response = httpx.get(f"{self.core_api_url}/admin/prompts/name/{name}") # Assuming an endpoint to fetch by name
+            # Generate one-time key and secret for inter-service authentication
+            key = str(uuid.uuid4())
+            secret = str(uuid.uuid4())
+
+            # Save to Redis with a short TTL (e.g., 60 seconds)
+            self.redis_client.set(key, secret, ex=60)
+
+            headers = {
+                "X-API-KEY": key,
+                "X-API-SECRET": secret
+            }
+
+            response = httpx.get(
+                f"{self.core_api_url}/internal/prompts/name/{name}",
+                headers=headers
+            )
             response.raise_for_status()
             template_content = response.json()["templateContent"]
             # Manual cache store
@@ -43,11 +60,10 @@ class PromptLoader:
         """
         Gets a prompt template by name, utilizing the cache.
         """
-        # For this prototype, we assume a single default prompt is used.
-        # The logic can be extended to fetch different prompts by name.
         template_content = self._fetch_prompt_from_api(name)
+        # The input variables must now include chat_history
         return PromptTemplate(
-            input_variables=["context", "question"],
+            input_variables=["context", "question", "chat_history"],
             template=template_content,
         )
 
