@@ -1,22 +1,21 @@
 import logging
 import os
-from pathlib import PurePath, Path
+from pathlib import Path
 from typing import Union
 
-from langchain_community.vectorstores import FAISS
+from langchain_elasticsearch import ElasticsearchStore, DenseVectorStrategy
 from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
 
 from ..embedding import hugging_face
 
-# Define the directory where the vector store will be saved.
-VECTOR_STORE_DIR = '/app/vector-store'
-
 logger = logging.getLogger(__name__)
 
+INDEX_NAME = "rag_documents"
 
-def load_pdf(pdf_path: Union[str, PurePath]) -> list[Document]:
+
+def load_pdf(pdf_path: Union[str, Path]) -> list[Document]:
     """Loads a PDF from the given path and returns its content as a list of Document objects."""
     loader = PyPDFLoader(str(pdf_path))
     return loader.load()
@@ -25,8 +24,8 @@ def load_pdf(pdf_path: Union[str, PurePath]) -> list[Document]:
 def split_text(doc: list[Document]) -> list[Document]:
     """Splits a list of Document objects into smaller chunks for efficient processing."""
     text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1000,       # The maximum size of each chunk (in characters).
-        chunk_overlap=200,     # The number of characters to overlap between chunks.
+        chunk_size=1000,
+        chunk_overlap=200,
         length_function=len
     )
     return text_splitter.split_documents(doc)
@@ -35,110 +34,114 @@ def split_text(doc: list[Document]) -> list[Document]:
 class DataProcessor:
     """
     Handles all data processing tasks, including loading documents, splitting text,
-    and managing the FAISS vector store for retrieval.
+    and managing the Elasticsearch vector store for retrieval.
     """
-    vector_store_path = VECTOR_STORE_DIR
 
     def __init__(self):
         """
-        Initializes the DataProcessor, loading the embedding model and the vector store.
+        Initializes the DataProcessor, loading the embedding model and setting up the Elasticsearch vector store.
+        It also ensures that the index exists with the correct mapping.
         """
         self.embedding = hugging_face.get_embedding()
-        self.vector_store = self._load_or_initialize_vector_store()
+        es_url = os.environ.get("ELASTICSEARCH_URL", "http://elasticsearch:9200")
 
-    def _load_or_initialize_vector_store(self) -> FAISS:
-        """
-        Loads an existing FAISS index from disk. If it doesn't exist, creates a new one.
-        """
-        # Check if a vector store already exists at the specified path.
-        if Path(self.vector_store_path).exists() and os.listdir(self.vector_store_path):
-            logger.info(f"Loading existing FAISS index from {self.vector_store_path}")
-            # Note: LangChain's FAISS implementation uses pickle for serialization.
-            # Loading a pickled file can be a security risk, so `allow_dangerous_deserialization`
-            # must be explicitly set to True.
-            return FAISS.load_local(self.vector_store_path, self.embedding, allow_dangerous_deserialization=True)
+        logger.info(f"Initializing ElasticsearchStore with URL: {es_url} and index: {INDEX_NAME}")
+        self.vector_store = ElasticsearchStore(
+            es_url=es_url,
+            index_name=INDEX_NAME,
+            embedding=self.embedding,
+            strategy=DenseVectorStrategy()
+        )
+
+        self._create_index_if_not_exists()
+        logger.info("ElasticsearchStore initialized successfully.")
+
+    def _create_index_if_not_exists(self):
+        """Creates the Elasticsearch index with the correct mapping if it doesn't exist."""
+        client = self.vector_store.client
+        if not client.indices.exists(index=INDEX_NAME):
+            logger.info(f"Index '{INDEX_NAME}' not found. Creating it with the specified mapping.")
+            mapping = {
+                "properties": {
+                    "metadata": {
+                        "properties": {
+                            "category": {"type": "keyword"},
+                            "file_name": {"type": "keyword"},
+                            "page_number": {"type": "integer"}
+                        }
+                    },
+                    "text": {"type": "text"},
+                    "vector": {
+                        "type": "dense_vector",
+                        "dims": 1024,  # Specify the dimension of the embedding vector
+                        "index": True,
+                        "similarity": "cosine"
+                    }
+                }
+            }
+            try:
+                client.indices.create(index=INDEX_NAME, mappings=mapping)
+                logger.info(f"Index '{INDEX_NAME}' created successfully.")
+            except Exception as e:
+                logger.error(f"Failed to create index '{INDEX_NAME}': {e}")
+                raise
         else:
-            logger.info("No existing FAISS index found. Initializing a new one.")
-            os.makedirs(self.vector_store_path, exist_ok=True)
-            # A FAISS index must be initialized with at least one document to establish
-            # the correct embedding dimension. A dummy document is used for this purpose.
-            dummy_doc = [Document(page_content="init")]
-            vector_store = FAISS.from_documents(dummy_doc, self.embedding)
-            vector_store.save_local(self.vector_store_path)
-            return vector_store
+            logger.debug(f"Index '{INDEX_NAME}' already exists.")
 
-    def add_document(self, pdf_path: Union[str, PurePath], document_name: str = None) -> None:
+    def add_document(self, pdf_path: Union[str, Path], document_name: str = None, category: str | None = None) -> None:
         """
-        Processes and adds a single PDF document to the vector store.
-
-        Args:
-            pdf_path: The path to the PDF file to be added.
-            document_name: The name of the document to be added.
+        Processes and adds a single PDF document to the Elasticsearch index.
         """
         pdf_path = Path(pdf_path)
         logger.info(f"Processing and adding document: {pdf_path.name}")
         doc = load_pdf(pdf_path)
         chunks = split_text(doc)
-        document_id, file_name = pdf_path.name.split("_")
 
-        # Tag each chunk with the source file name. This is crucial for enabling
-        # targeted deletion of documents from the vector store later.
+        if not document_name:
+            document_name = pdf_path.name
+
+        # Tag each chunk with metadata
         for chunk in chunks:
-            chunk.metadata["document_id"] = document_id
-            chunk.metadata["file_name"] = document_name if document_name == file_name else pdf_path.name
-            chunk.metadata["page_number"] = chunk.metadata["page"] + 1
+            chunk.metadata["file_name"] = document_name
+            chunk.metadata["page_number"] = chunk.metadata.get("page", 0) + 1
+            if category:
+                chunk.metadata["category"] = category
 
         self.vector_store.add_documents(chunks)
-        self.vector_store.save_local(self.vector_store_path)
-        logger.info(f"Successfully added {pdf_path.name} to the vector store.")
+        logger.info(f"Successfully added {pdf_path.name} to the Elasticsearch index.")
 
     def delete_document(self, file_name: str) -> bool:
         """
-        Deletes all vectors associated with a specific file name from the vector store.
-
-        Note: This is a potentially expensive operation as it requires a linear scan
-        through the entire document store to find matching IDs.
-
-        Args:
-            file_name: The name of the file to delete.
-
-        Returns:
-            True if documents were deleted, False otherwise.
+        Deletes all vectors associated with a specific file name from Elasticsearch.
         """
-        if not self.vector_store:
-            logger.error("Vector store is not initialized.")
+        logger.info(f"Deleting document with file_name: {file_name} from Elasticsearch.")
+        try:
+            self.vector_store.client.delete_by_query(
+                index=INDEX_NAME,
+                body={
+                    "query": {
+                        "term": {
+                            "metadata.file_name.keyword": file_name
+                        }
+                    }
+                }
+            )
+            logger.info(f"Successfully submitted deletion request for file: {file_name}")
+            return True
+        except Exception as e:
+            logger.error(f"Error deleting document {file_name} from Elasticsearch: {e}")
             return False
 
-        document_id = file_name.split("_")[0]
-        # Find the internal FAISS IDs for all chunks belonging to the specified file.
-        ids_to_delete = [
-            doc_id for doc_id, doc in self.vector_store.docstore._dict.items()
-            if doc.metadata.get("document_id") == document_id or doc.metadata.get("file_name") == file_name
-        ]
-
-        if not ids_to_delete:
-            logger.warning(f"No documents found with file_name: {file_name}. Nothing to delete.")
-            return False
-
-        logger.info(f"Deleting {len(ids_to_delete)} vectors for file: {file_name}")
-        self.vector_store.delete(ids_to_delete)
-        self.vector_store.save_local(self.vector_store_path)
-        logger.info(f"Successfully deleted vectors for {file_name}.")
-        return True
-
-    def update_document(self, pdf_path: Union[str, PurePath], document_name: str = None) -> None:
+    def update_document(self, pdf_path: Union[str, Path], document_name: str = None, category: str | None = None) -> None:
         """
-        Updates a document in the vector store by performing a delete-then-add operation.
-
-        Args:
-            pdf_path: The path to the new version of the PDF file.
-            document_name: The name of the document to update.
+        Updates a document in Elasticsearch by performing a delete-then-add operation.
         """
         pdf_path = Path(pdf_path)
-        file_name = document_name if document_name is not None else pdf_path.name
-        logger.info(f"Updating document: {file_name}")
+        file_name_to_delete = document_name if document_name is not None else pdf_path.name
+        
+        logger.info(f"Updating document: {file_name_to_delete}")
         # First, delete all existing vectors associated with the document.
-        self.delete_document(file_name)
+        self.delete_document(file_name_to_delete)
         # Then, add the new version of the document.
-        self.add_document(pdf_path)
+        self.add_document(pdf_path, document_name=file_name_to_delete, category=category)
         logger.info(f"Successfully updated document: {pdf_path.name}")

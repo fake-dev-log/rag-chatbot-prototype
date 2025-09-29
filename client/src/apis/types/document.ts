@@ -3,5 +3,6 @@ export interface Document {
   name: string;
   type: string;
   size: number;
+  category?: string;
   createdAt: string;
 }

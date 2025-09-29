@@ -1,15 +1,14 @@
 import json
 import logging
 
-logger = logging.getLogger(__name__)
-
 from app.chat.schemas import SourceDocument
-from app.modules.embedding import hugging_face
 from app.modules.llm import Ollama
-from app.modules.prompt.prompt_loader import prompt_loader # Import the prompt loader
-from app.modules.retriever import Faiss
-
+from app.modules.prompt.prompt_loader import prompt_loader
+from app.modules.retriever import retriever_provider  # Import the provider
 from langchain_core.output_parsers import StrOutputParser
+from langchain_core.runnables import RunnablePassthrough
+
+logger = logging.getLogger(__name__)
 
 
 def format_ndjson(obj: dict) -> str:
@@ -21,85 +20,69 @@ class ChatService:
     """
     Manages the core logic of the RAG chatbot, including the retrieval and generation chain.
     """
-    ready = False
 
     def __init__(self):
-        """Initializes the RAG chain and its components."""
-        # Use the PromptLoader to get the prompt template.
-        self.prompt = prompt_loader.get_prompt("default") # Assuming "default" is the name of the prompt to use
-        self.llm = Ollama().get_model() # Commented out for testing without Ollama
-        embedding = hugging_face.get_embedding()
-
-        self.faiss_manager = Faiss(embedding)
-        self.retriever = self.faiss_manager.get_retriever()
-
-        self.chain = (
-                {
-                    "context": lambda x: x["context"],
-                    "question": lambda x: x["question"],
-                    "chat_history": lambda x: x["chat_history"],
-                }
-                | self.prompt
-                | self.llm
-                | StrOutputParser()
-        )
-        self.ready = True
-
-    def reload_retriever(self):
-        """
-        Reloads the FAISS vector store retriever from disk.
-        """
-        self.ready = False
-        self.faiss_manager.reload_retriever()
-        self.retriever = self.faiss_manager.get_retriever()
-        self.ready = True
+        """Initializes the RAG chain components, holding the vector store for dynamic retriever creation."""
+        self.prompt = prompt_loader.get_prompt("default")
+        self.llm = Ollama().get_model()
+        self.vector_store = retriever_provider.get_vector_store()  # Get the vector store instance
+        logger.info("ChatService initialized with vector store.")
 
     def apply_prompt(self, name: str, template_content: str):
         """
-        Applies a new prompt by invalidating the cache and reloading the RAG chain.
+        Applies a new prompt by invalidating the cache.
+        The chain is now built dynamically in the `stream` method.
         """
-        self.ready = False
-        # Directly update the cache with the provided content
         prompt_loader.cache[name] = template_content
-        self.prompt = prompt_loader.get_prompt(name) # This will now get it from cache
+        self.prompt = prompt_loader.get_prompt(name)
+        logger.info(f"New prompt '{name}' has been applied.")
 
-        self.chain = (
-                {
-                    "context": lambda x: x["context"],
-                    "question": lambda x: x["question"],
-                    "chat_history": lambda x: x["chat_history"],
-                }
+    def stream(self, query: str, chat_history: str | None = None, category: str | None = None):
+        """
+        Handles a user query by streaming the response from the RAG chain.
+        Dynamically builds the retriever and chain based on the request.
+        """
+        chat_history = chat_history or "No conversation history yet."
+
+        # 1. Dynamically configure the retriever with search kwargs for filtering
+        search_kwargs = {'k': 3}
+        if category:
+            search_kwargs["filter"] = [{"term": {"metadata.category": category}}]
+        
+        request_retriever = self.vector_store.as_retriever(search_kwargs=search_kwargs)
+
+        # 2. Build the chain for this specific request
+        chain_with_context = RunnablePassthrough.assign(
+            context=(lambda x: x['question']) | request_retriever
+        )
+        request_chain = (
+                chain_with_context
                 | self.prompt
                 | self.llm
                 | StrOutputParser()
         )
-        self.ready = True
-        logger.info(f"New prompt '{name}' has been applied.")
 
-    def stream(self, query: str, chat_history: str | None = None):
-        """
-        Handles a user query by streaming the response from the RAG chain.
-        """
-        retrieved_docs = self.retriever.invoke(query)
-        chat_history = chat_history or "No conversation history yet."
+        # 3. Get source documents separately for the client response
+        retrieved_docs = request_retriever.invoke(query)
 
-        if not retrieved_docs:
-            chain_input = {"context": None, "question": query, "chat_history": chat_history}
-            for chunk in self.chain.stream(chain_input):
-                yield format_ndjson({"type": "token", "data": chunk})
-        else:
+        # 4. Stream the response from the chain
+        chain_input = {"question": query, "chat_history": chat_history}
+        for chunk in request_chain.stream(chain_input):
+            yield format_ndjson({"type": "token", "data": chunk})
+
+        # 5. Yield the source documents at the end
+        if retrieved_docs:
             sources = [
                 SourceDocument(
-                    file_name=doc.metadata.get('file_name', 'N/A').split('_', 1)[-1],
+                    file_name=doc.metadata.get('file_name', 'N/A'),
                     title=str(doc.metadata.get('title', 'N/A')),
                     page_number=doc.metadata.get('page_number', 0),
                     snippet=doc.page_content,
                 ).model_dump(by_alias=True)
                 for doc in retrieved_docs
             ]
-
-            chain_input = {"context": retrieved_docs, "question": query, "chat_history": chat_history}
-            for chunk in self.chain.stream(chain_input):
-                yield format_ndjson({"type": "token", "data": chunk})
-
             yield format_ndjson({"type": "sources", "data": sources})
+
+
+# Singleton instance of the ChatService, used by chat routes.
+service = ChatService()

@@ -12,23 +12,12 @@ router = APIRouter(prefix='/chats')
 service = ChatService()
 
 
-@router.head('', dependencies=[Depends(verify_api_key)])
+@router.head("", status_code=HTTPStatus.OK)
 async def readiness_check():
     """
-    Performs a readiness check for the ChatService.
-
-    This endpoint is used to verify if the service is ready to accept requests,
-    which is particularly useful for services that have a long startup time
-    (e.g., loading large machine learning models).
-
-    Returns:
-        - 200 OK: If the service is ready.
-        - 503 Service Unavailable: If the service is not yet ready.
+    Performs a readiness check. Returns 200 OK if the service is running and ready to accept requests.
     """
-    if service.ready:
-        return Response(status_code=HTTPStatus.OK)
-    else:
-        raise HTTPException(status_code=HTTPStatus.SERVICE_UNAVAILABLE, detail="Service is not ready")
+    return Response()
 
 
 
@@ -46,4 +35,4 @@ async def chat(request: ChatRequest):
         A StreamingResponse that sends newline-delimited JSON (NDJSON) objects.
         Each object in the stream represents an event (e.g., a token or source documents).
     """
-    return StreamingResponse(service.stream(query=request.query, chat_history=request.chat_history), media_type="application/x-ndjson")
+    return StreamingResponse(service.stream(query=request.query, chat_history=request.chat_history, category=request.category), media_type="application/x-ndjson")

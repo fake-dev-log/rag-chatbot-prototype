@@ -8,6 +8,7 @@ SUMMARY_PROMPT_TEMPLATE = """
 You are an expert in summarizing conversations.
 Your task is to create a concise summary of the following text, which includes a previous summary and the latest user question and AI answer.
 The summary should be a single, dense paragraph.
+The summary should be in the same language as the conversation.
 
 Previous summary:
 {previous_summary}

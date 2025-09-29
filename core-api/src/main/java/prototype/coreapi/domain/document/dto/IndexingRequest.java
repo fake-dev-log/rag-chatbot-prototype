@@ -2,6 +2,7 @@ package prototype.coreapi.domain.document.dto;
 
 public record IndexingRequest(
         String file_path,
-        String document_name
+        String document_name,
+        String category
 ) {
 }

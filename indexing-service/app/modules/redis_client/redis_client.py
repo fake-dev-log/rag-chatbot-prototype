@@ -21,4 +21,5 @@ class RedisClient:
     def get_del(self, key):
         return self.client.getdel(key)
 
+
 client = RedisClient()

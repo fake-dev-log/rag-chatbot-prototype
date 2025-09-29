@@ -20,7 +20,7 @@
   transition: transform 0.3s ease; /* Smooth transition back to original position */
 }
 
-.hover-scroll-container:hover .hover-scroll-text {
+.hover-scroll-container.can-scroll:hover .hover-scroll-text {
   /* On hover, calculate the distance to scroll */
   /* This scrolls the text fully to the left */
   animation: marquee 7s linear;

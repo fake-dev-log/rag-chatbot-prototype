@@ -18,4 +18,6 @@ public class Document extends BaseEntity {
     private String type; // File extension (e.g., "pdf")
 
     private long size; // File size (bytes)
+
+    private String category; // Document category for filtering
 }

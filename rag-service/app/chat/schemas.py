@@ -10,12 +10,13 @@ class ChatRequest(BaseModel):
         description="The summary of the conversation so far, to be used as context.",
         example="The user asked about RAG chatbots..."
     )
+    category: str | None = Field(None, description="The category to filter the search by.")
 
 
 class SourceDocument(BaseModel):
-    file_name: str
+    file_name: str = Field(..., alias="fileName")
     title: str | None = None
-    page_number: int
+    page_number: int = Field(..., alias="pageNumber")
     snippet: str
 
     class Config:

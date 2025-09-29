@@ -125,7 +125,7 @@ public class ChatController {
                         chatService.findById(chatId),
                         chat -> chat.getMemberId().equals(principal.memberId()),
                         new BusinessException(ErrorCode.FORBIDDEN)
-                ).thenMany(chatService.handleUserMessage(chatId, req.getQuery())
+                ).thenMany(chatService.handleUserMessage(chatId, req.getQuery(), req.getCategory())
                         .timeout(Duration.ofSeconds(45))
                         .onErrorResume(TimeoutException.class,
                                 ex -> Flux.just(new ChatChunk("error", JsonNodeFactory.instance.textNode("Response time exceeded.")))))

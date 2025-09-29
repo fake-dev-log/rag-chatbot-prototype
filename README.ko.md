@@ -36,7 +36,7 @@ graph TD
     subgraph "Data & AI Stores"
         E[Redis<br><i>Cache / Task Broker</i>]
         F[Local LLM: Ollama]
-        G[Vector Store: FAISS]
+        G[Vector Store: Elasticsearch]
         H[Database: PostgreSQL/MongoDB]
     end
 
@@ -60,13 +60,14 @@ graph TD
 - **Client**: 사용자가 챗봇과 상호작용하고, 관리자가 문서를 관리하는 웹 애플리케이션입니다. 모든 요청은 Core API를 통해 전달됩니다.
 - **Core API**: 주 애플리케이션 서버. 사용자 인증(JWT), 역할 기반 접근 제어(RBAC), 문서 관리 등 핵심 로직과 더불어, Client의 요청을 각 서비스에 전달하고 응답을 받아 반환하는 게이트웨이 역할을 수행합니다. 또한 대화 세션 관리 및 대화 내용 요약본을 데이터베이스에 저장/관리하는 오케스트레이션을 수행합니다. Caffeine 라이브러리를 활용한 인메모리 캐시로 대화 요약본을 낙관적으로 캐싱하여, 비동기 처리 중에도 사용자에게 즉각적인 대화 맥락을 제공하고 응답성을 향상시킵니다.
 - **RAG Service**: LLM과의 통신, 벡터 저장소 검색, 프롬프트 생성 등 RAG 파이프라인의 핵심 기능을 담당합니다. 또한 기존 RAG 기능 외에, 대화 요약을 전담하는 API를 추가로 제공합니다.
-- **Indexing Service**: Core API의 요청을 받아 원본 데이터를 벡터로 변환하여 벡터 저장소(FAISS)를 생성하고 관리합니다.
+- **Indexing Service**: Core API의 요청을 받아 원본 데이터를 벡터로 변환하여 벡터 저장소(Elasticsearch)를 생성하고 관리합니다.
 - **Local LLM**: 로컬에 설치된 Ollama를 통해 LLM 모델을 사용합니다.
-- **Databases**: `core-api`에서 사용하는 PostgreSQL, MongoDB와 `rag-service`에서 사용하는 FAISS 벡터 저장소로 구성됩니다.
+- **Databases**: `core-api`에서 사용하는 PostgreSQL, MongoDB와 `rag-service`에서 사용하는 Elasticsearch 벡터 저장소로 구성됩니다.
 
 ## 3. 주요 기능
 
 - **실시간 RAG 챗봇**: 사용자의 질문에 대해 관련 문서를 검색하여 LLM이 생성한 답변을 제공합니다.
+- **카테고리 기반 필터링 검색**: 사용자가 문서의 카테고리를 지정하여 질문할 수 있어, 특정 분야로 검색 범위를 좁혀 더 정확하고 관련성 높은 답변을 얻을 수 있습니다.
 - **사용자 인증**: JWT 기반의 안전한 로그인/로그아웃 기능을 제공합니다.
 - **관리자 대시보드**:
     - **역할 기반 접근 제어**: ADMIN 역할을 가진 사용자만 접근할 수 있습니다.
@@ -93,7 +94,7 @@ graph TD
 ### 4.3. RAG Service (`rag-service`)
 - **Framework**: FastAPI
 - **Core Logic**: LangChain
-- **Vector Store**: FAISS (CPU)
+- **Vector Store**: Elasticsearch
 - **Language**: Python
 
 ### 4.4. Indexing Service (`indexing-service`)
@@ -227,9 +228,9 @@ graph TD
 
 ### 7.2. 메인 페이지
 
-- 메인 화면에서 바로 대화를 시작하거나, 'Chat History'를 통해 이전 대화 기록을 확인할 수 있습니다. ~~단, LLM이 대화의 맥락을 기억하지는 않으므로 이전 대화에 이어서 질문하는 것은 불가능합니다.~~
+- 메인 화면에서 바로 대화를 시작하거나, 이전 대화 목록을 통해 이전 대화 기록을 확인할 수 있습니다. ~~단, LLM이 대화의 맥락을 기억하지는 않으므로 이전 대화에 이어서 질문하는 것은 불가능합니다.~~
 - 아래 화면은 관리자 계정으로 접근했기 때문에 Documents와 Prompts 메뉴가 보입니다. 일반 사용자의 경우에는 해당 메뉴에 접근할 수 없습니다.
-![Home](./.github/assets/home.png)
+![New Chat](./.github/assets/new_chat.png)
 
 #### 대화 맥락 기억
 
@@ -239,7 +240,10 @@ graph TD
 ### 7.3. 문서 관리
 
 - 관리자는 RAG에 사용할 문서를 업로드하거나 삭제할 수 있습니다.
+- 문서 업로드시, 문서의 범주(카테고리)를 설정할 수 있습니다.
 ![Documents](./.github/assets/documents_page.png)
+- LLM에 질의시, 검색할 문서의 카테고리를 지정하면 특정 분야로 검색 범위를 좁혀 더 정확하고 관련성 높은 답변을 얻을 수 있습니다.
+![Select Category](.github/assets/select_category.png)
 
 ### 7.4. 프롬프트 관리
 

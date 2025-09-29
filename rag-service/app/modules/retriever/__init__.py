@@ -1,1 +1,3 @@
-from .faiss import *
+from .provider import RetrieverProvider
+
+retriever_provider = RetrieverProvider()

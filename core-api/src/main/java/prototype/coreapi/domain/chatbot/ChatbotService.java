@@ -6,7 +6,6 @@ import prototype.coreapi.domain.chatbot.dto.*;
 import prototype.coreapi.global.config.WebClientFactory;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-
 import reactor.util.retry.Retry;
 import java.time.Duration;
 
@@ -19,26 +18,36 @@ public class ChatbotService {
         this.ragWebClient = webClientFactory.getWebClient(WebClientFactory.ServiceType.RAG);
     }
 
-    public Flux<ChatChunk> inference(String question, String chatHistory) {
-        return performPreflightCheck()
-                .thenMany(performInference(question, chatHistory));
-    }
-
     private Mono<Void> performPreflightCheck() {
         return ragWebClient.head()
-                .uri("/chats")
+                .uri("/chats") // A simple endpoint to check if the service is up
                 .retrieve()
                 .onStatus(
                         status -> status.is5xxServerError() || status.value() == 503,
-                        resp -> Mono.error(new IllegalStateException("Inference Service is preparing"))
+                        resp -> Mono.error(new IllegalStateException("RAG Service is not ready or unavailable"))
                 )
                 .toBodilessEntity()
                 .retryWhen(Retry.backoff(3, Duration.ofSeconds(2)).maxBackoff(Duration.ofSeconds(10)))
                 .then();
     }
 
-    private Flux<ChatChunk> performInference(String question, String chatHistory) {
-        ChatbotRequest reqDto = new ChatbotRequest(question, chatHistory);
+    public Flux<ChatChunk> inference(String question, String chatHistory, String category) {
+        return performPreflightCheck()
+                .thenMany(performInference(question, chatHistory, category));
+    }
+
+    public Mono<SummarizationResponse> summarize(String previousSummary, String newQuestion, String newAnswer) {
+        return performPreflightCheck()
+                .then(performSummarize(previousSummary, newQuestion, newAnswer));
+    }
+
+    public Mono<TitleGenerationResponse> generateTitle(String question, String answer) {
+        return performPreflightCheck()
+                .then(performGenerateTitle(question, answer));
+    }
+
+    private Flux<ChatChunk> performInference(String question, String chatHistory, String category) {
+        ChatbotRequest reqDto = new ChatbotRequest(question, chatHistory, category);
 
         return ragWebClient.post()
                 .uri("/chats")
@@ -49,7 +58,7 @@ public class ChatbotService {
                 .onErrorMap(throwable -> new RuntimeException("LLM Error", throwable));
     }
 
-    public Mono<SummarizationResponse> summarize(String previousSummary, String newQuestion, String newAnswer) {
+    private Mono<SummarizationResponse> performSummarize(String previousSummary, String newQuestion, String newAnswer) {
         SummarizationRequest reqDto = new SummarizationRequest(previousSummary, newQuestion, newAnswer);
 
         return ragWebClient.post()
@@ -61,7 +70,7 @@ public class ChatbotService {
                 .onErrorMap(throwable -> new RuntimeException("Summarization Error", throwable));
     }
 
-    public Mono<TitleGenerationResponse> generateTitle(String question, String answer) {
+    private Mono<TitleGenerationResponse> performGenerateTitle(String question, String answer) {
         TitleGenerationRequest reqDto = new TitleGenerationRequest(question, answer);
 
         return ragWebClient.post()

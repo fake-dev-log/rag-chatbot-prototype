@@ -9,6 +9,7 @@ public record DocumentResponse(
         String name,
         String type,
         long size,
+        String category,
         LocalDateTime createdAt
 ) {
     public static DocumentResponse from(Document document) {
@@ -17,6 +18,7 @@ public record DocumentResponse(
                 document.getName(),
                 document.getType(),
                 document.getSize(),
+                document.getCategory(),
                 document.getCreatedAt()
         );
     }

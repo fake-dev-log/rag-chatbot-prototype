@@ -12,6 +12,8 @@ import prototype.coreapi.domain.document.dto.DocumentResponse;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.List;
+
 /**
  * REST controller for managing documents within the RAG system.
  * Provides endpoints for retrieving, uploading, and deleting documents.
@@ -36,6 +38,12 @@ public class DocumentController {
         return documentService.findAll();
     }
 
+    @GetMapping("/categories")
+    @Operation(summary = "Retrieve all categories", description = "Retrieves a list of all unique document categories.")
+    public Mono<List<String>> getCategories() {
+        return documentService.findAllCategories();
+    }
+
     /**
      * Uploads a new document to the system. The document will be stored and then indexed.
      * @param filePartMono A Mono emitting the uploaded file.
@@ -45,9 +53,10 @@ public class DocumentController {
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Upload Document", description = "Uploads a new document and requests indexing.")
     public Mono<DocumentResponse> uploadDocument(
-            @RequestPart("file") Mono<FilePart> filePartMono
+            @RequestPart("file") Mono<FilePart> filePartMono,
+            @RequestPart("category") String category
     ) { 
-        return filePartMono.flatMap(documentService::upload);
+        return filePartMono.flatMap(file -> documentService.upload(file, category));
     }
 
     /**

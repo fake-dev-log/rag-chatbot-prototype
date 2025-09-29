@@ -18,13 +18,14 @@ export function useDocumentList() {
 export function useUploadDocument() {
   const queryClient = useQueryClient();
 
-  return useMutation<Document, Error, File>({
-    onMutate: async (file) => {
+  return useMutation<Document, Error, { file: File, category: string }>({
+    onMutate: async ({ file }) => {
       toast.info(`Uploading document '${file.name}'...`);
     },
-    mutationFn: async (file) => {
+    mutationFn: async ({ file, category }) => {
       const formData = new FormData();
       formData.append('file', file);
+      formData.append('category', category);
 
       const response = await api.post(`${baseURL}${API_BASE_URL.documents}/upload`, formData, {
         headers: {
@@ -36,7 +37,7 @@ export function useUploadDocument() {
     },
     onSuccess: (data) => {
       toast.success(`Document '${data.name}' uploaded and indexing completed.`);
-      return queryClient.invalidateQueries({ queryKey: ['documents', 'list'] });
+      queryClient.invalidateQueries({ queryKey: ['documents'] });
     },
   });
 }
@@ -53,7 +54,17 @@ export function useDeleteDocument() {
     },
     onSuccess: (_, documentId) => {
       toast.success(`Document ID '${documentId}' deleted and de-indexing completed.`);
-      return queryClient.invalidateQueries({ queryKey: ['documents', 'list'] });
+      return queryClient.invalidateQueries({ queryKey: ['documents'] });
+    },
+  });
+}
+
+export function useDocumentCategories() {
+  return useQuery<string[], Error>({
+    queryKey: ['documents', 'categories'],
+    queryFn: async () => {
+      const response = await api.get(`${baseURL}${API_BASE_URL.documents}/categories`);
+      return response.data as string[];
     },
   });
 }

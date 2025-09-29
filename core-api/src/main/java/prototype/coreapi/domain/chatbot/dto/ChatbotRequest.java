@@ -20,4 +20,7 @@ public class ChatbotRequest {
 
     @Schema(description = "The summary of the conversation so far, to be used as context.", example = "The user asked about RAG chatbots...")
     private String chatHistory;
+
+    @Schema(description = "Category to filter the documents for retrieval.", example = "current")
+    private String category;
 }

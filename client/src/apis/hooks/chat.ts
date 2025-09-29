@@ -1,7 +1,7 @@
 import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query"
 import { useChatStore } from "@stores/chat"
 import { API_BASE_URL, baseURL } from "@apis/types/common"
-import {type ChatResponse, convertToSourceDocuments, type OriginalSource} from "@apis/types/chat"
+import {type ChatResponse, type SourceDocument} from "@apis/types/chat"
 import {fetchWithAuth} from "@apis/fetchWithAuth.ts";
 import api from "@apis/index";
 
@@ -34,7 +34,7 @@ export function useChatHistory(chatId: number, opts?: { skipWhenInitialQuery: bo
     },
     // The query will only run if `chatId` is a valid number.
     // `skipWhenInitialQuery` can be used to prevent fetching until a condition is met.
-    enabled: !!chatId && !(opts?.skipWhenInitialQuery ?? false),
+    enabled: !isNaN(chatId) && !(opts?.skipWhenInitialQuery ?? false),
   })
 }
 
@@ -70,83 +70,74 @@ export function useCreateChat() {
  * @returns A TanStack Mutation object for sending a message.
  */
 export function useChat() {
-  // Get actions from the Zustand chat store to update the UI state.
-  const addMessage = useChatStore((s) => s.addMessage);
-  const appendToLastBot = useChatStore((s) => s.appendToLastBot);
-  const setLastBotTime = useChatStore((s) => s.setLastBotTime);
-  const setSourcesOnLastBot = useChatStore((s) => s.setSourcesOnLastBot);
+  const addMessageToChat = useChatStore((s) => s.addMessageToChat);
+  const appendToLastBotInChat = useChatStore((s) => s.appendToLastBotInChat);
+  const setLastBotTimeInChat = useChatStore((s) => s.setLastBotTimeInChat);
+  const setSourcesOnLastBotInChat = useChatStore((s) => s.setSourcesOnLastBotInChat);
+  const addStreamingId = useChatStore((s) => s.addStreamingId);
+  const removeStreamingId = useChatStore((s) => s.removeStreamingId);
 
-  return useMutation<ReadableStreamDefaultReader<Uint8Array>, Error, { chatId: number, query: string }>({
-    /**
-     * The core mutation function that sends the request to the server.
-     * @returns A ReadableStreamDefaultReader to process the streamed response.
-     */
-    mutationFn: async ({ chatId, query }) => {
+  return useMutation<ReadableStreamDefaultReader<Uint8Array>, Error, { chatId: number, query: string, category?: string | null }>({
+    mutationFn: async ({ chatId, query, category }) => {
       const res = await fetchWithAuth(`${baseURL}${API_BASE_URL.chats}/${chatId}/message`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ query }),
-      })
+        body: JSON.stringify({ query, category }),
+      });
       if (!res.ok) {
         const errorResponse = await res.json();
         throw new Error(errorResponse.message || `HTTP ${res.status}`);
       }
-      return res.body!.getReader()
+      return res.body!.getReader();
     },
 
-    /**
-     * Called before the mutation function. This performs an optimistic update
-     * to make the UI feel more responsive.
-     */
-    onMutate: ({ query }) => {
-      // Immediately add the user's message to the chat window.
-      addMessage({ from: 'USER', text: query, createdAt: new Date() });
-      // Add an empty placeholder for the bot's response, which will be filled by the stream.
-      addMessage({ from: "BOT", text: "" })
+    onMutate: ({ chatId, query }) => {
+      addMessageToChat(chatId, { from: 'USER', text: query, createdAt: new Date() });
+      addMessageToChat(chatId, { from: "BOT", text: "" });
+      addStreamingId(chatId);
     },
 
-    /**
-     * Called on successful mutation, with the stream reader as the payload.
-     * This function reads and processes the NDJSON stream from the server.
-     */
-    onSuccess: async (reader) => {
-      const decoder = new TextDecoder()
-      let buf = ""
-      let done = false
+    onSuccess: async (reader, { chatId }) => {
+      const decoder = new TextDecoder();
+      let buf = "";
+      let done = false;
 
       while (!done) {
-        const { value, done: finished } = await reader.read()
-        done = finished
-        buf += decoder.decode(value, { stream: true })
+        const { value, done: finished } = await reader.read();
+        done = finished;
+        buf += decoder.decode(value, { stream: true });
 
-        // Process buffer line by line, as it may contain multiple NDJSON objects.
-        let idx: number
+        let idx: number;
         while ((idx = buf.indexOf("\n")) !== -1) {
-          const line = buf.slice(0, idx).trim()
-          buf = buf.slice(idx + 1)
-          if (!line) continue
+          const line = buf.slice(0, idx).trim();
+          buf = buf.slice(idx + 1);
+          if (!line) continue;
 
           const { type, data } = JSON.parse(line) as {
-            type: "token" | "sources" | "done" | "error"
-            data: string | OriginalSource[] | boolean
-          }
+            type: "token" | "sources" | "done" | "error";
+            data: string | SourceDocument[] | boolean;
+          };
 
-          // Handle different event types from the stream.
           if (type === "token") {
-            appendToLastBot(data as string) // Append token to the bot's message.
+            appendToLastBotInChat(chatId, data as string);
           } else if (type === "sources") {
-            setSourcesOnLastBot(convertToSourceDocuments(data as OriginalSource[])) // Set source documents.
+            setSourcesOnLastBotInChat(chatId, data as SourceDocument[]);
           } else if (type === "error") {
             throw new Error(data as string || "An unknown error occurred");
           } else if (type === "done") {
-            done = data as boolean // Mark the end of the stream.
+            done = data as boolean;
           }
         }
       }
-      // Set the final timestamp for the bot's message.
-      setLastBotTime();
+      setLastBotTimeInChat(chatId);
+      removeStreamingId(chatId);
     },
-  })
+
+    onError: (_, { chatId }) => {
+      removeStreamingId(chatId);
+      // You might want to add a message to the chat indicating an error occurred.
+    },
+  });
 }

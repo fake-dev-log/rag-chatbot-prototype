@@ -2,73 +2,112 @@ import { create } from "zustand";
 import type {Message, SourceDocument } from "@apis/types/chat";
 
 interface ChatState {
-  messages: Message[];
-  setMessages: (messages: Message[]) => void;
-  addMessage: (msg: Message) => void;
-  appendToLastBot: (text: string) => void;
-  setLastBotTime: () => void;
-  setSourcesOnLastBot: (sources: SourceDocument[]) => void;
-  clearMessages: () => void;
+  messagesByChatId: Record<number, Message[]>;
+  streamingChatIds: number[];
+
+  setMessagesForChat: (chatId: number, messages: Message[]) => void;
+  addMessageToChat: (chatId: number, msg: Message) => void;
+  appendToLastBotInChat: (chatId: number, text: string) => void;
+  setSourcesOnLastBotInChat: (chatId: number, sources: SourceDocument[]) => void;
+  setLastBotTimeInChat: (chatId: number) => void;
+  clearMessagesForChat: (chatId: number) => void;
+
+  addStreamingId: (chatId: number) => void;
+  removeStreamingId: (chatId: number) => void;
 }
 
 export const useChatStore = create<ChatState>((set) => ({
-  messages: [],
+  messagesByChatId: {},
+  streamingChatIds: [],
 
-  setMessages: (messages) => {
+  addStreamingId: (chatId) =>
     set((state) => ({
-      messages: [...state.messages, ...messages]
-    }))
-  },
-
-  addMessage: (msg) =>
-    set((state) => ({
-      messages: [...state.messages, msg],
+      streamingChatIds: [...state.streamingChatIds, chatId],
     })),
 
-  appendToLastBot: (text) =>
+  removeStreamingId: (chatId) =>
+    set((state) => ({
+      streamingChatIds: state.streamingChatIds.filter((id) => id !== chatId),
+    })),
+
+  setMessagesForChat: (chatId, messages) =>
+    set((state) => ({
+      messagesByChatId: {
+        ...state.messagesByChatId,
+        [chatId]: messages,
+      },
+    })),
+
+  addMessageToChat: (chatId, msg) =>
     set((state) => {
-      const msgs = [...state.messages]
-      if (msgs.length === 0) return state
-      const last = msgs[msgs.length - 1]
-      if (last.from === "BOT") {
-        msgs[msgs.length - 1] = {
-          ...last,
-          text: last.text + text,
-        }
-      }
-      return { messages: msgs }
+      const currentMessages = state.messagesByChatId[chatId] ?? [];
+      return {
+        messagesByChatId: {
+          ...state.messagesByChatId,
+          [chatId]: [...currentMessages, msg],
+        },
+      };
     }),
 
-  setLastBotTime: () =>
+  appendToLastBotInChat: (chatId, text) =>
     set((state) => {
-      const msgs = [...state.messages]
-      if (msgs.length === 0) return state
-      const last = msgs[msgs.length - 1]
+      const currentMessages = state.messagesByChatId[chatId] ?? [];
+      if (currentMessages.length === 0) return state;
+
+      const last = currentMessages[currentMessages.length - 1];
+      if (last.from === "BOT") {
+        const updatedLast = { ...last, text: last.text + text };
+        return {
+          messagesByChatId: {
+            ...state.messagesByChatId,
+            [chatId]: [...currentMessages.slice(0, -1), updatedLast],
+          },
+        };
+      }
+      return state;
+    }),
+
+  setSourcesOnLastBotInChat: (chatId, sources) =>
+    set((state) => {
+      const currentMessages = state.messagesByChatId[chatId] ?? [];
+      if (currentMessages.length === 0) return state;
+
+      const last = currentMessages[currentMessages.length - 1];
+      if (last.from === "BOT") {
+        const updatedLast = { ...last, sources };
+        return {
+          messagesByChatId: {
+            ...state.messagesByChatId,
+            [chatId]: [...currentMessages.slice(0, -1), updatedLast],
+          },
+        };
+      }
+      return state;
+    }),
+
+  setLastBotTimeInChat: (chatId) =>
+    set((state) => {
+      const currentMessages = state.messagesByChatId[chatId] ?? [];
+      if (currentMessages.length === 0) return state;
+
+      const last = currentMessages[currentMessages.length - 1];
       if (last.from === 'BOT') {
-        msgs[msgs.length - 1] = {
-          ...last,
-          createdAt: new Date(),
-        }
+        const updatedLast = { ...last, createdAt: new Date() };
+        return {
+          messagesByChatId: {
+            ...state.messagesByChatId,
+            [chatId]: [...currentMessages.slice(0, -1), updatedLast],
+          },
+        };
       }
-      return { messages: msgs }
+      return state;
     }),
 
-  setSourcesOnLastBot: (sources) =>
-    set((state) => {
-      const msgs = [...state.messages]
-      if (msgs.length === 0) return state
-      const last = msgs[msgs.length - 1]
-      if (last.from === "BOT") {
-        msgs[msgs.length - 1] = {
-          ...last,
-          sources,         // ← attach sources
-        }
-      }
-      return { messages: msgs }
-    }),
-
-  clearMessages: () =>
-    set(() => ({
-      messages: [],
+  clearMessagesForChat: (chatId) =>
+    set((state) => ({
+      messagesByChatId: {
+        ...state.messagesByChatId,
+        [chatId]: [],
+      },
     })),
-}))
+}));

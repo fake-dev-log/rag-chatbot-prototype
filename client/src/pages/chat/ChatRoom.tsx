@@ -3,39 +3,60 @@ import { useChatStore } from '@stores/chat';
 import {useChat, useChatHistory} from '@apis/hooks/chat';
 import NotFound from '@pages/error/NotFound';
 import ChatWindow from '@pages/chat/ChatWindow';
-import {useEffect, useRef} from "react";
-import {convertToMessage} from "@apis/types/chat.ts";
+import {useEffect, useRef, useState} from "react";
+import {useDocumentCategories} from "@apis/hooks/document.ts";
+import {convertToMessage, type Message} from "@apis/types/chat.ts";
 import NoSuchContent from "@pages/error/NoSuchContent.tsx";
+
+const emptyMessages: Message[] = []; // Stable empty array reference to prevent re-renders
 
 export default function ChatRoom() {
   const { chatId } = useParams<{ chatId: string }>();
   const id = chatId ? Number(chatId) : NaN;
   const { state } = useLocation();
-  const initialQueryRef = useRef(state?.initialQuery);
+  const initialQuery = useRef(state?.initialQuery);
+  const initialCategory = useRef(state?.category);
 
-  const { mutate, isPending } = useChat();
-  const { data: chatHistory, isFetching } = useChatHistory(id, { skipWhenInitialQuery: !!initialQueryRef.current });
-  const messages = useChatStore(s => s.messages);
-  const setMessages = useChatStore(s => s.setMessages)
-  const clearMessages = useChatStore(s => s.clearMessages)
+  const { mutate } = useChat();
+  const { data: chatHistory, isFetching } = useChatHistory(id, { skipWhenInitialQuery: !!initialQuery.current });
+  const { data: categories } = useDocumentCategories();
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
 
+  // Select state and actions from the store. Actions are stable and won't cause re-renders.
+  const messages = useChatStore(s => s.messagesByChatId[id] ?? emptyMessages);
+  const setMessagesForChat = useChatStore(s => s.setMessagesForChat);
+  const clearMessagesForChat = useChatStore(s => s.clearMessagesForChat);
+  const streamingChatIds = useChatStore(s => s.streamingChatIds);
+
+  const isThisRoomStreaming = streamingChatIds.includes(id);
+
+  // Effect for handling the initial query from the home page
   useEffect(() => {
-    clearMessages();
-
-    if (initialQueryRef.current) {
-      mutate({ chatId: id, query: initialQueryRef.current });
-      initialQueryRef.current = undefined;
+    if (initialQuery.current) {
+      const categoryToUse = initialCategory.current ?? "";
+      if (initialCategory.current) {
+        setSelectedCategory(initialCategory.current);
+      }
+      clearMessagesForChat(id);
+      mutate({ chatId: id, query: initialQuery.current, category: categoryToUse });
+      initialQuery.current = undefined;
+      initialCategory.current = undefined;
     }
-  }, [clearMessages, id, mutate]);
+  }, [id, clearMessagesForChat, mutate, setSelectedCategory]);
 
+  // Effect for loading chat history from the server into the store
   useEffect(() => {
-    if (chatHistory && !isPending) {
-      setMessages(convertToMessage(chatHistory.messages ?? []));
+    // This effect synchronizes server-side chat history with the client-side Zustand store.
+    // It runs only when chatHistory is fetched and the local store for this chat is empty.
+    // This prevents an infinite loop where the store update would cause a re-render,
+    // which would then re-trigger this effect.
+    if (chatHistory && messages.length === 0 && !isThisRoomStreaming) {
+      setMessagesForChat(id, convertToMessage(chatHistory.messages ?? []));
     }
-  }, [chatHistory, isPending, setMessages]);
+  }, [id, chatHistory, messages.length, isThisRoomStreaming, setMessagesForChat]);
 
-  if (isNaN(id) && !isPending && !isFetching) return <NotFound />;
-  if (!chatHistory && !isPending && !isFetching) return <NoSuchContent />;
+  if (isNaN(id)) return <NotFound />;
+  if (!chatHistory && !isFetching && messages.length === 0 && !initialQuery.current) return <NoSuchContent />;
 
   return (
     <div
@@ -47,8 +68,11 @@ export default function ChatRoom() {
     >
       <ChatWindow
         messages={messages}
-        isPending={isPending}
-        onSubmit={query => mutate({chatId: id, query})}
+        isStreaming={isThisRoomStreaming}
+        onSubmit={query => mutate({chatId: id, query, category: selectedCategory})}
+        categories={categories ?? []}
+        selectedCategory={selectedCategory}
+        setSelectedCategory={setSelectedCategory}
       />
     </div>
   );

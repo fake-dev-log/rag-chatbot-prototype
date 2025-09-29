@@ -172,6 +172,21 @@ services:
     depends_on:
       - core-api # Client depends on core-api for API calls
 
+  elasticsearch:
+    image: elasticsearch:9.1.4
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false # For local development only
+    volumes:
+      - es-data:/usr/share/elasticsearch/data
+    networks:
+      internal-net:
+        aliases:
+          - elasticsearch
+    expose:
+      - "9200"
+
 networks:
   internal-net:
     driver: bridge
@@ -242,3 +257,10 @@ volumes:
       type: none
       o: bind
       device: ${VOLUME_ROOT}/vector-store
+
+  es-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${VOLUME_ROOT}/es

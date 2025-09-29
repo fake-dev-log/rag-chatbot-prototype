@@ -1,28 +1,8 @@
-export interface OriginalSource {
-  file_name: string
-  title: string
-  page_number: number
-  snippet: string
-}
-
 export interface SourceDocument {
   fileName: string;
   title: string;
   pageNumber: number;
   snippet: string;
-}
-
-export function convertToSourceDocuments(sources: OriginalSource[]): SourceDocument[] {
-  const result: SourceDocument[] = []
-  sources.forEach(source => {
-    result.push({
-      fileName: source.file_name,
-      title: source.title,
-      pageNumber: source.page_number,
-      snippet: source.snippet,
-    })
-  })
-  return result
 }
 
 export interface Message {

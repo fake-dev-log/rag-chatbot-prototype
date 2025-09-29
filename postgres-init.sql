@@ -61,6 +61,7 @@ CREATE TABLE documents (
     path                VARCHAR(512) NOT NULL,
     type                VARCHAR(50)  NOT NULL,
     size                BIGINT       NOT NULL,
+    category            VARCHAR(100) NULL,
     created_at          TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at          TIMESTAMP    NULL
 );
@@ -75,6 +76,7 @@ COMMENT ON COLUMN documents.name IS 'Original file name';
 COMMENT ON COLUMN documents.path IS 'Full path of the saved file';
 COMMENT ON COLUMN documents.type IS 'File extension';
 COMMENT ON COLUMN documents.size IS 'File size (bytes)';
+COMMENT ON COLUMN documents.category IS 'Document category for filtering';
 COMMENT ON COLUMN documents.created_at IS 'Creation time';
 COMMENT ON COLUMN documents.updated_at IS 'Modification date and time';
 
@@ -132,7 +134,7 @@ Context: {context}
 
 Question: {question}
 
-REMEMBER: Read the question again to ensure you fully understand the user's intent. If the answer is in the CHAT HISTORY, use it.
+REMEMBER: Read the question again to ensure you fully understand the user''s intent. If the answer is in the CHAT HISTORY, use it.
 
 Your answer:'
 ), (

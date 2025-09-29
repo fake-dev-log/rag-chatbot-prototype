@@ -19,8 +19,7 @@ service = DocumentService()
 )
 async def add_document(request: DocumentRequest):
     try:
-        response = service.add_document(request.file_path, request.document_name)
-        await service.trigger_rag_retriever_reload()
+        response = service.add_document(request.file_path, request.document_name, request.category)
         return response
     except FileNotFoundError:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail=f"File not found at path: {request.file_path}")
@@ -36,8 +35,7 @@ async def add_document(request: DocumentRequest):
 )
 async def update_document(request: DocumentRequest):
     try:
-        response = service.update_document(request.file_path)
-        await service.trigger_rag_retriever_reload()
+        response = service.update_document(request.file_path, request.document_name, request.category)
         return response
     except FileNotFoundError:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail=f"File not found at path: {request.file_path}")
@@ -54,8 +52,6 @@ async def update_document(request: DocumentRequest):
 async def delete_document(file_name: str):
     try:
         response = service.delete_document(file_name)
-        if response.get("is_deleted"):
-            await service.trigger_rag_retriever_reload()
         return response
     except Exception as e:
         logger.error(f"Error deleting document {file_name}: {e}")

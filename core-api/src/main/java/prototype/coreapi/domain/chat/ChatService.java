@@ -107,7 +107,7 @@ public class ChatService {
                 });
     }
 
-    public Flux<ChatChunk> handleUserMessage(Long chatId, String userContent) {
+    public Flux<ChatChunk> handleUserMessage(Long chatId, String userContent, String category) {
         Mono<Chat> chatMono = findById(chatId).cache();
 
         return chatMono.flatMapMany(chat -> {
@@ -125,7 +125,7 @@ public class ChatService {
                 String summaryFromCache = summaryCache.get(chatId, String.class);
                 final String previousSummary = (summaryFromCache != null) ? summaryFromCache : savedChat.getSummary();
 
-                Flux<ChatChunk> tokenFlux = chatBotService.inference(userContent, previousSummary)
+                Flux<ChatChunk> tokenFlux = chatBotService.inference(userContent, previousSummary, category)
                         .doOnNext(chunk -> {
                             if ("token".equals(chunk.type())) {
                                 tokenBuffer.add(chunk.data().asText());
