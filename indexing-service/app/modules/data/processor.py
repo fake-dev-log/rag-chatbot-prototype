@@ -42,19 +42,26 @@ class DataProcessor:
         Initializes the DataProcessor, loading the embedding model and setting up the Elasticsearch vector store.
         It also ensures that the index exists with the correct mapping.
         """
-        self.embedding = hugging_face.get_embedding()
-        es_url = os.environ.get("ELASTICSEARCH_URL", "http://elasticsearch:9200")
+        es_host = os.environ.get("ELASTICSEARCH_HOST", "elasticsearch")
+        es_password = os.environ.get("ELASTICSEARCH_PASSWORD")
+
+        es_url = f"http://{es_host}:9200"
 
         logger.info(f"Initializing ElasticsearchStore with URL: {es_url} and index: {INDEX_NAME}")
-        self.vector_store = ElasticsearchStore(
-            es_url=es_url,
-            index_name=INDEX_NAME,
-            embedding=self.embedding,
-            strategy=DenseVectorStrategy()
-        )
-
-        self._create_index_if_not_exists()
-        logger.info("ElasticsearchStore initialized successfully.")
+        try:
+            self.vector_store = ElasticsearchStore(
+                es_url=es_url,
+                index_name=INDEX_NAME,
+                strategy=DenseVectorStrategy(),
+                embedding=hugging_face.get_embedding(),
+                es_user='elastic',
+                es_password=es_password
+            )
+            self._create_index_if_not_exists()
+            logger.info("ElasticsearchStore initialized successfully.")
+        except Exception as e:
+            logger.error(f"Failed to initialize ElasticsearchStore or create index: {e}")
+            raise
 
     def _create_index_if_not_exists(self):
         """Creates the Elasticsearch index with the correct mapping if it doesn't exist."""
