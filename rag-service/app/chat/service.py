@@ -45,7 +45,7 @@ class ChatService:
         chat_history = chat_history or "No conversation history yet."
 
         # 1. Dynamically configure the retriever with search kwargs for filtering
-        search_kwargs = {'k': 3}
+        search_kwargs = {'k': 2}
         if category:
             search_kwargs["filter"] = [{"term": {"metadata.category": category}}]
         

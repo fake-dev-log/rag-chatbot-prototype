@@ -69,17 +69,17 @@ LOGGING_CONFIG = {
     'loggers': {
         'uvicorn': {
             'handlers': ['default', 'file'],
-            'level': 'TRACE',
+            'level': 'WARNING',
             'propagate': False
         },
         'uvicorn.access': {
             'handlers': ['console', 'file'],
-            'level': 'TRACE',
+            'level': 'WARNING',
             'propagate': False
         },
         'uvicorn.error': {
             'handlers': ['console', 'file'],
-            'level': 'TRACE',
+            'level': 'WARNING',
             'propagate': False
         },
         'uvicorn.asgi': {
