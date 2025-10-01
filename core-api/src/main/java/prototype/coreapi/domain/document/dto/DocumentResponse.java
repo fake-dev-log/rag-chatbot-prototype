@@ -1,6 +1,7 @@
 package prototype.coreapi.domain.document.dto;
 
 import prototype.coreapi.domain.document.entity.Document;
+import prototype.coreapi.domain.document.enums.IndexingStatus;
 
 import java.time.LocalDateTime;
 
@@ -10,6 +11,7 @@ public record DocumentResponse(
         String type,
         long size,
         String category,
+        IndexingStatus status,
         LocalDateTime createdAt
 ) {
     public static DocumentResponse from(Document document) {
@@ -19,6 +21,7 @@ public record DocumentResponse(
                 document.getType(),
                 document.getSize(),
                 document.getCategory(),
+                document.getStatus(),
                 document.getCreatedAt()
         );
     }

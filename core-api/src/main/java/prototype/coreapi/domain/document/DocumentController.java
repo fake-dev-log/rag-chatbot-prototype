@@ -7,6 +7,14 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.security.access.prepost.PreAuthorize;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.codec.multipart.FilePart;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.web.bind.annotation.*;
 import prototype.coreapi.domain.document.dto.DocumentResponse;
 import reactor.core.publisher.Flux;
@@ -14,35 +22,34 @@ import reactor.core.publisher.Mono;
 
 import java.util.List;
 
-/**
- * REST controller for managing documents within the RAG system.
- * Provides endpoints for retrieving, uploading, and deleting documents.
- * Access to these endpoints is restricted to users with the 'ADMIN' role.
- */
 @RestController
-@RequestMapping("/documents")
-@RequiredArgsConstructor
-@Tag(name = "Document Management", description = "RAG Document Management API")
+@RequestMapping("/admin/documents")
+@Tag(name = "Document Management", description = "APIs for managing documents")
 @PreAuthorize("hasRole('ADMIN')")
+@RequiredArgsConstructor
 public class DocumentController {
 
     private final DocumentService documentService;
+    private final SseEmitterService sseEmitterService; // Inject SSE Service
 
-    /**
-     * Retrieves a list of all documents currently managed by the system.
-     * @return A Flux of DocumentResponse containing details of each document.
-     */
     @GetMapping
-    @Operation(summary = "Retrieve document list", description = "Retrieves all documents used in RAG.")
-    public Flux<DocumentResponse> getDocuments() { 
+    @Operation(summary = "Get all documents")
+    public Flux<DocumentResponse> getDocuments() {
         return documentService.findAll();
     }
 
+    @GetMapping("/status-stream")
+    @Operation(summary = "Stream document status updates", description = "Connect to receive real-time updates on document indexing status.")
+    public Flux<ServerSentEvent<DocumentResponse>> getDocumentStatusStream() {
+        return sseEmitterService.connect();
+    }
+
     @GetMapping("/categories")
-    @Operation(summary = "Retrieve all categories", description = "Retrieves a list of all unique document categories.")
+    @Operation(summary = "Get all distinct document categories")
     public Mono<List<String>> getCategories() {
         return documentService.findAllCategories();
     }
+
 
     /**
      * Uploads a new document to the system. The document will be stored and then indexed.

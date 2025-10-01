@@ -1,17 +1,15 @@
-import {API_BASE_URL} from "@apis/types/common.ts";
+import {API_PATHS} from "@apis/types/common.ts";
 import {useNavigate} from "react-router-dom";
 import {useMutation} from "@tanstack/react-query";
 import api from "src/apis";
 import type {AuthRequest, AuthResponse} from "@apis/types/auth.ts";
 import useAuthStore from "@stores/auth.ts";
 
-const baseUri = API_BASE_URL.auth
-
 const useSignIn = () => {
   const navigate = useNavigate();
   return useMutation<AuthResponse, Error, AuthRequest>({
     mutationFn: async (params) => {
-      const response = await api.post<AuthResponse>(`${baseUri}/sign-in`, params);
+      const response = await api.post<AuthResponse>(API_PATHS.auth.signIn, params);
       return response.data;
     },
     onSuccess: async (data: AuthResponse) => {
@@ -26,7 +24,7 @@ const useSignOut = () => {
 
   return useMutation({
     mutationFn: async () => {
-      await api.post<void>(`${baseUri}/sign-out`);
+      await api.post<void>(API_PATHS.auth.signOut);
     },
     onSuccess: () => {
       useAuthStore.getState().signOut();

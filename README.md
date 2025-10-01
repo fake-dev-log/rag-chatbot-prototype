@@ -36,7 +36,7 @@ graph TD
     end
 
     subgraph "Data & AI Stores"
-        E[Redis<br><i>Cache / Task Broker</i>]
+        E[Redis<br><i>Cache / Message Queue</i>]
         F[Local LLM: Ollama]
         G[Vector Store: Elasticsearch]
         H[Database: PostgreSQL/MongoDB]
@@ -45,24 +45,23 @@ graph TD
 %% Main application flow
     A -- "HTTP API" --> B
     B -- "Internal API Call (Query + History)" --> C
-    B -- "Triggers Indexing" --> D
+
+%% Asynchronous Indexing Flow
+    B -- "1. Publishes Indexing Job" --> E
+    E -- "2. Consumes Job" --> D
+    D -- "3. Updates Status" --> B
 
 %% Data store interactions
     B -- "Manages Metadata & Summary" --> H
     C -- "Retrieves data from" --> G
     D -- "Creates/Updates" --> G
     C -- "Generates response with" --> F
-
-%% Redis-specific interactions
-    B -- "Caches Sessions & Publishes Task Token" --> E
-    C -- "Consumes Task Token" --> E
-    D -- "Consumes Task Token" --> E
 ```
 
 - **Client**: A web application where users interact with the chatbot and administrators manage documents. All requests are routed through the Core API.
-- **Core API**: The main application server. It handles core logic such as user authentication (JWT), Role-Based Access Control (RBAC), and document management. It also serves as a gateway, routing client requests to the appropriate internal services. It also orchestrates conversation session management, including saving and managing conversation summaries in the database. It employs an in-memory cache (Caffeine) to implement an optimistic caching strategy for conversation summaries, enhancing responsiveness by providing immediate context during asynchronous processing.
+- **Core API**: The main application server. It handles core logic such as user authentication (JWT) and Role-Based Access Control (RBAC). It also serves as a gateway, routing client requests to the appropriate internal services. For document uploads, it publishes an indexing job to a Redis message queue and responds immediately to ensure responsiveness. It also orchestrates conversation session management, including saving and managing conversation summaries in the database.
 - **RAG Service**:  Manages the core functionalities of the RAG pipeline, including communication with the LLM, vector store retrieval, and prompt generation. In addition to its core RAG functions, it provides a dedicated API for conversation summarization.
-- **Indexing Service**: Receives requests from the Core API to convert source data into vectors and manages the creation of the vector store (Elasticsearch).
+- **Indexing Service**: Subscribes to the Redis message queue to asynchronously receive indexing jobs. Upon receiving a job, it converts source data into vectors, creates/updates the vector store (Elasticsearch), and updates the status via the Core API upon completion.
 - **Local LLM**: Utilizes an LLM model via a locally installed Ollama instance.
 - **Databases**: Consists of PostgreSQL and MongoDB used by the `core-api`, and an Elasticsearch vector store used by the `rag-service`.
 
@@ -73,7 +72,7 @@ graph TD
 - **User Authentication**: Secure login/logout functionality based on JWT.
 - **Admin Dashboard**:
     - **Role-Based Access Control**: Accessible only to users with the ADMIN role.
-    - **Document Management**: Allows uploading and deleting documents used for RAG.
+    - **Asynchronous Document Management**: Allows uploading and deleting documents for RAG. Uploads are processed asynchronously via a message queue, providing an immediate response to the user regardless of file size. The processing status (`Pending`, `Success`, `Failure`) is updated in real-time on the UI using Server-Sent Events (SSE).
     - **Prompt Management**: Allows administrators to create, update, and delete prompt templates used by the RAG Service.
 - **Conversation Context Memory & Summarization**: Continuously remembers the dialogue with the user to provide context-aware answers. It asynchronously summarizes and manages the conversation through the collaboration of `core-api` and `rag-service`, ensuring stable handling of long dialogues.
 
@@ -105,6 +104,7 @@ graph TD
 
 ### 4.5. AI & Infrastructure
 - **LLM Engine**: Ollama
+- **Message Queue**: Redis
 - **Containerization**: Docker, Docker Compose
 
 ## 5. Directory Structure

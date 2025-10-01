@@ -9,4 +9,6 @@ public interface DocumentRepository extends ReactiveCrudRepository<Document, Lon
 
     @Query("SELECT DISTINCT category FROM documents WHERE category IS NOT NULL ORDER BY category")
     Flux<String> findDistinctCategories();
+
+    Flux<Document> findAllByOrderByCreatedAtDesc();
 }

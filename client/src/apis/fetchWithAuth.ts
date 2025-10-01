@@ -1,12 +1,12 @@
 import useAuthStore from "@stores/auth";
-import { baseURL } from "./types/common";
+import { API_PATHS, baseURL } from "./types/common";
 
 let refreshing: Promise<void> | null = null;
 
 async function doRefresh() {
   // only one in-flight refresh at a time
   if (!refreshing) {
-    refreshing = fetch(`${baseURL}/auth/refresh`, {
+    refreshing = fetch(`${baseURL}${API_PATHS.auth.refresh}`, {
       method: "POST",
       credentials: "include",
     })
@@ -26,7 +26,7 @@ async function doRefresh() {
 }
 
 export async function fetchWithAuth(
-  input: RequestInfo,
+  input: RequestInfo | URL,
   init: RequestInit = {},
   retry = true
 ): Promise<Response> {

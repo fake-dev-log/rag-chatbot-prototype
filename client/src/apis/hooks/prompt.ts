@@ -1,16 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { API_BASE_URL, baseURL } from '../types/common';
+import { API_PATHS, baseURL } from '../types/common';
 import type { PromptRequest, PromptResponse } from '@apis/types/prompt';
 import api from '../index';
 import { toast } from '@utils/toast.ts';
 
-const promptQueryKey = 'prompts';
+const promptQueryKey = 'prompt';
 
 export function usePromptList() {
   return useQuery<PromptResponse[], Error>({
     queryKey: [promptQueryKey, 'list'],
     queryFn: async () => {
-      const response = await api.get(`${baseURL}${API_BASE_URL.admin}/prompts`);
+      const response = await api.get(`${baseURL}${API_PATHS.admin.prompts.root}`);
       return response.data;
     },
   });
@@ -20,7 +20,7 @@ export function useCreatePrompt() {
   const queryClient = useQueryClient();
   return useMutation<PromptResponse, Error, PromptRequest>({
     mutationFn: async (prompt) => {
-      const response = await api.post(`${baseURL}${API_BASE_URL.admin}/prompts`, prompt);
+      const response = await api.post(`${baseURL}${API_PATHS.admin.prompts.root}`, prompt);
       return response.data;
     },
     onSuccess: () => {
@@ -33,7 +33,7 @@ export function useUpdatePrompt() {
   const queryClient = useQueryClient();
   return useMutation<PromptResponse, Error, { id: number; data: PromptRequest }>({
     mutationFn: async ({ id, data }) => {
-      const response = await api.put(`${baseURL}${API_BASE_URL.admin}/prompts/${id}`, data);
+      const response = await api.put(`${baseURL}${API_PATHS.admin.prompts.byId(id)}`, data);
       return response.data;
     },
     onSuccess: () => {
@@ -46,11 +46,11 @@ export function useDeletePrompt() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: number) =>{
-      const response = await api.delete(`${baseURL}${API_BASE_URL.admin}/prompts/${id}`);
+      const response = await api.delete(`${baseURL}${API_PATHS.admin.prompts.byId(id)}`);
       return response;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["prompts"] });
+      queryClient.invalidateQueries({ queryKey: [promptQueryKey] });
       toast.success("Prompt deleted successfully!");
     },
     onError: (error) => {
@@ -63,11 +63,11 @@ export function useApplyPrompt() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: number) =>{
-      const response = await api.post(`${baseURL}${API_BASE_URL.admin}/prompts/${id}/apply`)
+      const response = await api.post(`${baseURL}${API_PATHS.admin.prompts.apply(id)}`)
       return response;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["prompts"] });
+      queryClient.invalidateQueries({ queryKey: [promptQueryKey] });
       toast.success("Prompt applied successfully!");
     },
     onError: (error) => {

@@ -1,3 +1,5 @@
+export type IndexingStatus = 'PENDING' | 'SUCCESS' | 'FAILURE';
+
 export interface Document {
   id: number;
   name: string;
@@ -5,4 +7,5 @@ export interface Document {
   size: number;
   category?: string;
   createdAt: string;
+  status: IndexingStatus;
 }

@@ -45,7 +45,7 @@ async def update_document(request: DocumentRequest):
 
 
 @router.delete(
-    "/{file_name}",
+    "",
     response_model=DeleteResponse,
     summary="Delete a document from the vector store"
 )

@@ -58,10 +58,12 @@ COMMENT ON COLUMN chats.is_archived IS 'Whether the user has archived it';
 CREATE TABLE documents (
     id                  SERIAL PRIMARY KEY,
     name                VARCHAR(255) NOT NULL,
+    stored_name         VARCHAR(255) NOT NULL,
     path                VARCHAR(512) NOT NULL,
     type                VARCHAR(50)  NOT NULL,
     size                BIGINT       NOT NULL,
     category            VARCHAR(100) NULL,
+    status              VARCHAR(20)  NOT NULL,
     created_at          TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at          TIMESTAMP    NULL
 );
@@ -73,10 +75,12 @@ CREATE TRIGGER ON_UPDATE_TRIGGER
 
 COMMENT ON COLUMN documents.id IS 'PK';
 COMMENT ON COLUMN documents.name IS 'Original file name';
+COMMENT ON COLUMN documents.stored_name IS 'UUID-based name for internal storage';
 COMMENT ON COLUMN documents.path IS 'Full path of the saved file';
 COMMENT ON COLUMN documents.type IS 'File extension';
 COMMENT ON COLUMN documents.size IS 'File size (bytes)';
 COMMENT ON COLUMN documents.category IS 'Document category for filtering';
+COMMENT ON COLUMN documents.status IS 'Indexing process status';
 COMMENT ON COLUMN documents.created_at IS 'Creation time';
 COMMENT ON COLUMN documents.updated_at IS 'Modification date and time';
 

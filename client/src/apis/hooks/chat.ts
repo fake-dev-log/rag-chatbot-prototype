@@ -1,9 +1,11 @@
 import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query"
 import { useChatStore } from "@stores/chat"
-import { API_BASE_URL, baseURL } from "@apis/types/common"
+import { API_PATHS, baseURL } from "@apis/types/common"
 import {type ChatResponse, type SourceDocument} from "@apis/types/chat"
 import {fetchWithAuth} from "@apis/fetchWithAuth.ts";
 import api from "@apis/index";
+
+const chatQueryKey = 'chat';
 
 /**
  * Fetches a list of all chat rooms for the current user.
@@ -11,9 +13,9 @@ import api from "@apis/index";
  */
 export function useChatList() {
   return useQuery({
-    queryKey: ['chat', 'list'],
+    queryKey: [chatQueryKey, 'list'],
     queryFn: async () => {
-      const response = await api.get(`${baseURL}${API_BASE_URL.chats}`);
+      const response = await api.get(`${baseURL}${API_PATHS.chats.root}`);
       return response.data as ChatResponse[];
     },
   })
@@ -27,9 +29,9 @@ export function useChatList() {
  */
 export function useChatHistory(chatId: number, opts?: { skipWhenInitialQuery: boolean}) {
   return useQuery({
-    queryKey: ['chat', chatId],
+    queryKey: [chatQueryKey, chatId],
     queryFn: async () => {
-      const response = await api.get(`${baseURL}${API_BASE_URL.chats}/${chatId}`);
+      const response = await api.get(`${baseURL}${API_PATHS.chats.byId(chatId)}`);
       return response.data as ChatResponse
     },
     // The query will only run if `chatId` is a valid number.
@@ -46,7 +48,7 @@ export function useCreateChat() {
   const queryClient = useQueryClient();
   return useMutation<number, Error, void>({
     mutationFn: async () => {
-      const res = await fetchWithAuth(`${baseURL}${API_BASE_URL.chats}`, {
+      const res = await fetchWithAuth(`${baseURL}${API_PATHS.chats.root}`, {
         method: "POST",
       });
       if (!res.ok) {
@@ -56,9 +58,9 @@ export function useCreateChat() {
       return res.json();
     },
     // After a new chat is created successfully, invalidate the chat list query
-    // to trigger a refetch and update the UI with the new chat room.
+    // to trigger a refetch and update the UI with the new chat room. -
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['chat', 'list'] });
+      await queryClient.invalidateQueries({ queryKey: [chatQueryKey, 'list'] });
     }
   });
 }
@@ -79,7 +81,7 @@ export function useChat() {
 
   return useMutation<ReadableStreamDefaultReader<Uint8Array>, Error, { chatId: number, query: string, category?: string | null }>({
     mutationFn: async ({ chatId, query, category }) => {
-      const res = await fetchWithAuth(`${baseURL}${API_BASE_URL.chats}/${chatId}/message`, {
+      const res = await fetchWithAuth(`${baseURL}${API_PATHS.chats.messages(chatId)}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
