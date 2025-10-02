@@ -38,53 +38,63 @@ async def hybrid_search(
     Performs a hybrid search by manually combining vector and keyword (BM25) searches.
     The results are then re-ranked using Reciprocal Rank Fusion in the application code.
     This approach does not require a paid Elasticsearch license.
+    Includes comprehensive error handling to ensure service stability.
     """
-    logger.debug(f"Performing manual hybrid search for query: '{query}' with category: '{category}'")
+    try:
+        logger.debug(f"Performing manual hybrid search for query: '{query}' with category: '{category}'")
 
-    # 1. Vector Search (KNN) - This is an async operation
-    vector_search_kwargs = {'k': k}
-    if category:
-        vector_search_kwargs["filter"] = [{"term": {"metadata.category": category}}]
-    
-    vector_results = await vector_store.asimilarity_search(
-        query,
-        **vector_search_kwargs
-    )
-    logger.debug(f"Vector search found {len(vector_results)} results.")
-
-    # 2. Keyword Search (BM25) - This is a sync operation
-    bm25_query = {
-        "query": {
-            "bool": {
-                "must": [{"match": {"text": {"query": query}}}],
-                "filter": [{"term": {"metadata.category": category}}] if category else [],
-            }
-        },
-        "size": k,
-    }
-    
-    # Run the synchronous search call in a separate thread to make it awaitable
-    keyword_results_response = await asyncio.to_thread(
-        vector_store.client.search,
-        index=vector_store._store.index,
-        body=bm25_query,
-    )
-    
-    keyword_results = [
-        Document(
-            page_content=hit["_source"]["text"],
-            metadata=hit["_source"]["metadata"]
-        )
-        for hit in keyword_results_response["hits"]["hits"]
-    ]
-    logger.debug(f"Keyword search (BM25) found {len(keyword_results)} results.")
-
-    # 3. Re-rank using Reciprocal Rank Fusion
-    if not vector_results and not keyword_results:
-        return []
+        # 1. Vector Search (KNN) - This is an async operation
+        vector_search_kwargs = {'k': k}
+        if category:
+            vector_search_kwargs["filter"] = [{"term": {"metadata.category": category}}]
         
-    reranked_results = reciprocal_rank_fusion([vector_results, keyword_results])
-    logger.debug(f"Re-ranked results count: {len(reranked_results)}")
+        vector_results = await vector_store.asimilarity_search(
+            query,
+            **vector_search_kwargs
+        )
+        logger.debug(f"Vector search found {len(vector_results)} results.")
 
-    # Return the top k results after fusion
-    return reranked_results[:k]
+        # 2. Keyword Search (BM25) - This is a sync operation
+        bm25_query = {
+            "query": {
+                "bool": {
+                    "must": [{"match": {"text": {"query": query}}}],
+                    "filter": [{"term": {"metadata.category": category}}] if category else [],
+                }
+            },
+            "size": k,
+        }
+        
+        # Run the synchronous search call in a separate thread to make it awaitable
+        keyword_results_response = await asyncio.to_thread(
+            vector_store.client.search,
+            index=vector_store._store.index,
+            body=bm25_query,
+        )
+        
+        keyword_results = [
+            Document(
+                page_content=hit["_source"]["text"],
+                metadata=hit["_source"]["metadata"]
+            )
+            for hit in keyword_results_response["hits"]["hits"]
+        ]
+        logger.debug(f"Keyword search (BM25) found {len(keyword_results)} results.")
+
+        # 3. Re-rank using Reciprocal Rank Fusion
+        if not vector_results and not keyword_results:
+            return []
+            
+        reranked_results = reciprocal_rank_fusion([vector_results, keyword_results])
+        logger.debug(f"Re-ranked results count: {len(reranked_results)}")
+
+        # Return the top k results after fusion
+        return reranked_results[:k]
+
+    except Exception as e:
+        logger.error(
+            f"An error occurred during hybrid search for query: '{query}'. "
+            f"Returning empty list. Error: {e}",
+            exc_info=True  # This will log the full traceback for debugging
+        )
+        return []

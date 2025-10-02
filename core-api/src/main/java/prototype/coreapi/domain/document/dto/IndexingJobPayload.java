@@ -6,6 +6,7 @@ import lombok.Builder;
 public record IndexingJobPayload(
         Long documentId,
         String storedName,
+        String originalFilename,
         String category
 ) {
 }

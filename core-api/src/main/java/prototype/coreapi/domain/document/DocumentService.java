@@ -117,6 +117,7 @@ public class DocumentService {
                 IndexingJobPayload payload = IndexingJobPayload.builder()
                         .documentId(document.getId())
                         .storedName(document.getStoredName())
+                        .originalFilename(document.getName())
                         .category(document.getCategory())
                         .build();
                 return objectMapper.writeValueAsString(payload);
@@ -128,33 +129,41 @@ public class DocumentService {
         .doOnSuccess(jobId -> log.info("Published indexing job for document id: {}", document.getId()));
     }
 
+    private static final String DEINDEXING_QUEUE_KEY = "document-deindexing-queue";
+
+    private Mono<Long> publishDeindexingJob(Long documentId) {
+        return Mono.fromCallable(() -> {
+                    try {
+                        // Re-use the payload, just sending the ID is sufficient for deletion
+                        IndexingJobPayload payload = IndexingJobPayload.builder()
+                                .documentId(documentId)
+                                .build();
+                        return objectMapper.writeValueAsString(payload);
+                    } catch (JsonProcessingException e) {
+                        throw new RuntimeException("Error serializing de-indexing job payload", e);
+                    }
+                })
+                .flatMap(payload -> redisTemplate.opsForList().leftPush(DEINDEXING_QUEUE_KEY, payload))
+                .doOnSuccess(jobId -> log.info("Published de-indexing job for document id: {}", documentId));
+    }
+
     public Mono<Void> deleteById(Long documentId) {
         return documentRepository.findById(documentId)
                 .switchIfEmpty(Mono.error(new IllegalArgumentException("Document not found")))
                 .flatMap(document ->
-                        Mono.fromRunnable(() -> {
-                            File file = new File(document.getPath());
-                            if (file.exists() && !file.delete()) {
-                                log.warn("Failed to delete physical file: {}", document.getPath());
-                            }
-                        }).subscribeOn(Schedulers.boundedElastic())
-                                .then(triggerDeindexing(document.getStoredName())) // Use storedName for de-indexing
+                        // 1. Publish a de-indexing job to the Redis queue
+                        publishDeindexingJob(document.getId())
+                                .then(Mono.fromRunnable(() -> {
+                                    // 2. Delete the physical file
+                                    File file = new File(document.getPath());
+                                    if (file.exists() && !file.delete()) {
+                                        log.warn("Failed to delete physical file: {}", document.getPath());
+                                    }
+                                }).subscribeOn(Schedulers.boundedElastic()))
                                 .thenReturn(document)
                 )
-                .flatMap(document ->
-                        documentRepository.deleteById(document.getId())
-                );
-    }
-
-    private Mono<Void> triggerDeindexing(String storedName) {
-        return indexingWebClient.delete()
-                .uri(uriBuilder -> uriBuilder.path("/documents")
-                        .queryParam("file_name", storedName)
-                        .build())
-                .retrieve()
-                .bodyToMono(Void.class)
-                .retryWhen(Retry.backoff(3, Duration.ofSeconds(2)).maxBackoff(Duration.ofSeconds(10)))
-                .doOnError(e -> log.error("Failed to trigger de-indexing service for file: {}", storedName, e));
+                // 3. Delete the record from the database
+                .flatMap(document -> documentRepository.deleteById(document.getId()));
     }
 
     private String getFileExtension(String filename) {

@@ -61,7 +61,7 @@ graph TD
 - **Client**: A web application where users interact with the chatbot and administrators manage documents. All requests are routed through the Core API.
 - **Core API**: The main application server. It handles core logic such as user authentication (JWT) and Role-Based Access Control (RBAC). It also serves as a gateway, routing client requests to the appropriate internal services. For document uploads, it publishes an indexing job to a Redis message queue and responds immediately to ensure responsiveness. It also orchestrates conversation session management, including saving and managing conversation summaries in the database.
 - **RAG Service**:  Manages the core functionalities of the RAG pipeline, including communication with the LLM, vector store retrieval via hybrid search (keyword + vector), and prompt generation. In addition to its core RAG functions, it provides a dedicated API for conversation summarization.
-- **Indexing Service**: Subscribes to the Redis message queue to asynchronously receive indexing jobs. Upon receiving a job, it converts source data into vectors, creates/updates the vector store (Elasticsearch), and updates the status via the Core API upon completion.
+- **Indexing Service**: Subscribes to Redis message queues to asynchronously receive document indexing and deletion jobs. Upon receiving a job, it converts source data into vectors, creates/updates/deletes the vector store (Elasticsearch), and updates the status via the Core API upon completion.
 - **Local LLM**: Utilizes an LLM model via a locally installed Ollama instance.
 - **Databases**: Consists of PostgreSQL and MongoDB used by the `core-api`, and an Elasticsearch vector store used by the `rag-service`.
 
@@ -73,7 +73,7 @@ graph TD
 - **User Authentication**: Secure login/logout functionality based on JWT.
 - **Admin Dashboard**:
     - **Role-Based Access Control**: Accessible only to users with the ADMIN role.
-    - **Asynchronous Document Management**: Allows uploading and deleting documents for RAG. Uploads are processed asynchronously via a message queue, providing an immediate response to the user regardless of file size. The processing status (`Pending`, `Success`, `Failure`) is updated in real-time on the UI using Server-Sent Events (SSE).
+    - **Asynchronous Document Management**: Allows uploading and deleting documents for RAG. Upload and delete operations are processed asynchronously via a message queue, providing an immediate response to the user regardless of file size or processing time. The processing status (`Pending`, `Success`, `Failure`) is updated in real-time on the UI using Server-Sent Events (SSE).
     - **Prompt Management**: Allows administrators to create, update, and delete prompt templates used by the RAG Service.
 - **Conversation Context Memory & Summarization**: Continuously remembers the dialogue with the user to provide context-aware answers. It asynchronously summarizes and manages the conversation through the collaboration of `core-api` and `rag-service`, ensuring stable handling of long dialogues.
 

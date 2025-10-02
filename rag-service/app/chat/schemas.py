@@ -8,7 +8,7 @@ class ChatRequest(BaseModel):
         None,
         alias="chatHistory",
         description="The summary of the conversation so far, to be used as context.",
-        example="The user asked about RAG chatbots..."
+        examples=["The user asked about RAG chatbots..."],
     )
     category: str | None = Field(None, description="The category to filter the search by.")
 

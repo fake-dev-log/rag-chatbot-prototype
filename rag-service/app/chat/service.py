@@ -78,7 +78,7 @@ class ChatService:
         if retrieved_docs:
             sources = [
                 SourceDocument(
-                    file_name=doc.metadata.get('file_name', 'N/A'),
+                    file_name=doc.metadata.get('display_name', 'N/A'),
                     title=str(doc.metadata.get('title', 'N/A')),
                     page_number=doc.metadata.get('page_number', 0),
                     snippet=doc.page_content,

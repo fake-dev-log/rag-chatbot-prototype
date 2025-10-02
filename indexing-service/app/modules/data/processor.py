@@ -12,7 +12,7 @@ from ..embedding import hugging_face
 
 logger = logging.getLogger(__name__)
 
-INDEX_NAME = "rag_documents"
+INDEX_NAME = os.getenv("ELASTICSEARCH_INDEX_NAME", "rag_documents")
 
 
 def load_pdf(pdf_path: Union[str, Path]) -> list[Document]:
@@ -72,8 +72,9 @@ class DataProcessor:
                 "properties": {
                     "metadata": {
                         "properties": {
+                            "doc_id": {"type": "long"},
+                            "display_name": {"type": "keyword"},
                             "category": {"type": "keyword"},
-                            "file_name": {"type": "keyword"},
                             "page_number": {"type": "integer"}
                         }
                     },
@@ -95,60 +96,55 @@ class DataProcessor:
         else:
             logger.debug(f"Index '{INDEX_NAME}' already exists.")
 
-    def add_document(self, pdf_path: Union[str, Path], document_name: str = None, category: str | None = None) -> None:
+    def add_document(self, pdf_path: Union[str, Path], doc_id: int, original_filename: str, category: str | None = None) -> None:
         """
-        Processes and adds a single PDF document to the Elasticsearch index.
+        Processes and adds a single PDF document to the Elasticsearch index with rich metadata.
         """
         pdf_path = Path(pdf_path)
-        logger.info(f"Processing and adding document: {pdf_path.name}")
+        logger.info(f"Processing and adding document: {original_filename} (doc_id: {doc_id})")
         doc = load_pdf(pdf_path)
         chunks = split_text(doc)
 
-        if not document_name:
-            document_name = pdf_path.name
-
-        # Tag each chunk with metadata
+        # Tag each chunk with the new, richer metadata
         for chunk in chunks:
-            chunk.metadata["file_name"] = document_name
+            chunk.metadata["doc_id"] = doc_id
+            chunk.metadata["display_name"] = original_filename
             chunk.metadata["page_number"] = chunk.metadata.get("page", 0) + 1
             if category:
                 chunk.metadata["category"] = category
 
         self.vector_store.add_documents(chunks)
-        logger.info(f"Successfully added {pdf_path.name} to the Elasticsearch index.")
+        logger.info(f"Successfully added {original_filename} to the Elasticsearch index.")
 
-    def delete_document(self, file_name: str) -> bool:
+    def delete_document(self, doc_id: int) -> bool:
         """
-        Deletes all vectors associated with a specific file name from Elasticsearch.
+        Deletes all vectors associated with a specific doc_id from Elasticsearch.
         """
-        logger.info(f"Deleting document with file_name: {file_name} from Elasticsearch.")
+        logger.info(f"Deleting document with doc_id: {doc_id} from Elasticsearch.")
         try:
             self.vector_store.client.delete_by_query(
                 index=INDEX_NAME,
                 body={
                     "query": {
                         "term": {
-                            "metadata.file_name.keyword": file_name
+                            "metadata.doc_id": doc_id
                         }
                     }
                 }
             )
-            logger.info(f"Successfully submitted deletion request for file: {file_name}")
+            logger.info(f"Successfully submitted deletion request for doc_id: {doc_id}")
             return True
         except Exception as e:
-            logger.error(f"Error deleting document {file_name} from Elasticsearch: {e}")
+            logger.error(f"Error deleting document with doc_id {doc_id} from Elasticsearch: {e}")
             return False
 
-    def update_document(self, pdf_path: Union[str, Path], document_name: str = None, category: str | None = None) -> None:
+    def update_document(self, pdf_path: Union[str, Path], doc_id: int, original_filename: str, category: str | None = None) -> None:
         """
         Updates a document in Elasticsearch by performing a delete-then-add operation.
         """
-        pdf_path = Path(pdf_path)
-        file_name_to_delete = document_name if document_name is not None else pdf_path.name
-        
-        logger.info(f"Updating document: {file_name_to_delete}")
-        # First, delete all existing vectors associated with the document.
-        self.delete_document(file_name_to_delete)
+        logger.info(f"Updating document: {original_filename} (doc_id: {doc_id})")
+        # First, delete all existing vectors associated with the document id.
+        self.delete_document(doc_id)
         # Then, add the new version of the document.
-        self.add_document(pdf_path, document_name=file_name_to_delete, category=category)
-        logger.info(f"Successfully updated document: {pdf_path.name}")
+        self.add_document(pdf_path, doc_id=doc_id, original_filename=original_filename, category=category)
+        logger.info(f"Successfully updated document: {original_filename}")

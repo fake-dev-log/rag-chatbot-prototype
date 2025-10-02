@@ -6,7 +6,7 @@ from app.modules.embedding import hugging_face
 
 logger = logging.getLogger(__name__)
 
-INDEX_NAME = "rag_documents"
+INDEX_NAME = os.getenv("ELASTICSEARCH_INDEX_NAME", "rag_documents")
 
 
 class RetrieverProvider:
